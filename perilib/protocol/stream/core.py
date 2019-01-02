@@ -36,11 +36,11 @@ class StreamPacket(perilib_protocol_core.Packet):
         self.footer = footer
         self.metadata = metadata
         self.port_info = port_info
-
-        if self.definition != None:
-            if self.buffer != None:
+            
+        if self.definition is not None:
+            if self.buffer is not None:
                 self.build_structure_from_buffer()
-            elif self.header != None or self.payload != None or self.footer != None:
+            elif self.header is not None or self.payload is not None or self.footer is not None:
                 self.build_buffer_from_structure()
 
     def __getitem__(self, arg):
@@ -48,7 +48,7 @@ class StreamPacket(perilib_protocol_core.Packet):
 
     def __str__(self):
         s = ""
-        if self.definition == None:
+        if self.definition is None:
             s = "undefined %s packet" % self.TYPE_STR[self.type]
         else:
             packet_name = self.get_packet_name()
@@ -194,7 +194,7 @@ class ParserGenerator:
             self.parser_status = self.protocol.test_packet_start(bytes([in_byte]), port_info)
 
             # if we just started and there's a defined timeout, start the timer
-            if self.parser_status != ParserGenerator.STATUS_IDLE and self.timeout != None:
+            if self.parser_status != ParserGenerator.STATUS_IDLE and self.timeout is not None:
                 self.timer = threading.Timer(self.timeout, self._timed_out)
                 self.timer.start()
 
@@ -216,11 +216,11 @@ class ParserGenerator:
                 # convert the buffer to a packet
                 try:
                     self.last_rx_packet = self.protocol.get_packet_from_buffer(self.rx_buffer, port_info)
-                    if self.last_rx_packet != None and self.on_rx_packet:
+                    if self.last_rx_packet is not None and self.on_rx_packet:
                         # pass packet to receive callback
                         self.on_rx_packet(self.last_rx_packet)
                 except perilib_core.PerilibProtocolException as e:
-                    if self.on_rx_error != None:
+                    if self.on_rx_error is not None:
                         self.on_rx_error(e, self.rx_buffer, port_info)
 
                 # reset the parser
@@ -231,7 +231,7 @@ class ParserGenerator:
         return self.protocol.get_packet_from_name_and_args(_packet_name, _port_info, **kwargs)
 
     def _timed_out(self):
-        if self.on_packet_timeout != None:
+        if self.on_packet_timeout is not None:
             # pass partial packet to timeout callback
             self.on_packet_timeout(self.rx_buffer)
 

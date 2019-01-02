@@ -11,7 +11,7 @@ class Monitor:
         self.data_stream = data_stream
         self.auto_open = False
 
-        if self.data_stream != None and self.data_stream.on_disconnect_device == None:
+        if self.data_stream is not None and self.data_stream.on_disconnect_device is None:
             self.data_stream.on_disconnect_device = self._on_disconnect_device
 
         self.is_running = False
@@ -85,11 +85,11 @@ class Monitor:
     def _on_connect_device(self, port_info):
         run_builtin = True
 
-        if self.on_connect_device != None:
+        if self.on_connect_device is not None:
             # trigger the user-level connection callback
             run_builtin = self.on_connect_device(port_info)
 
-        if run_builtin != False and self.data_stream != None and self.auto_open == True:
+        if run_builtin != False and self.data_stream is not None and self.auto_open == True:
             # check whether we're already monitoring a serial stream
             if not self.data_stream.is_open:
                 # start watching for incoming data
@@ -102,11 +102,11 @@ class Monitor:
     def _on_disconnect_device(self, port_info):
         run_builtin = True
 
-        if self.on_disconnect_device != None:
+        if self.on_disconnect_device is not None:
             # trigger the user-level disconnection callback
             run_builtin = self.on_disconnect_device(port_info)
 
-        if run_builtin != False and self.data_stream != None:
+        if run_builtin != False and self.data_stream is not None:
             # check whether this device is currently being monitored
             if self.data_stream.port_info == port_info:
                 # stop the data monitor if it's still running (unlikely)

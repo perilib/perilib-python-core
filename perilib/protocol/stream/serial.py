@@ -28,7 +28,7 @@ class SerialStream:
             if not self.port.is_open:
                 self.port.open()
                 self._port_open = True
-            if self.on_open_stream != None:
+            if self.on_open_stream is not None:
                 # trigger port open callback
                 self.on_open_stream(self.port_info)
             self._monitor_thread = threading.Thread(target=self._watch_data)
@@ -55,7 +55,7 @@ class SerialStream:
 
     def send(self, _packet_name, **kwargs):
         packet = self.parser_generator.generate(_packet_name=_packet_name, _port_info=self.port_info, **kwargs)
-        if self.on_tx_packet != None:
+        if self.on_tx_packet is not None:
             # trigger packet transmission callback
             self.on_tx_packet(packet)
         return self.write(packet.buffer)
@@ -93,7 +93,7 @@ class SerialStream:
                 if threading.get_ident() not in self._stop_thread_ident_list:
                     self._stop_thread_ident_list.append(self._running_thread_ident)
 
-        if self.on_close_stream != None:
+        if self.on_close_stream is not None:
             # trigger port closure callback
             self.on_close_stream(self.port_info)
 
@@ -125,6 +125,6 @@ class SerialStream:
         if self.on_rx_data:
             run_builtin = self.on_rx_data(data)
 
-        if run_builtin != False and self.parser_generator != None:
+        if run_builtin != False and self.parser_generator is not None:
             # pass all incoming data to parser
             for in_byte in data: self.parser_generator.parse(in_byte, self.port_info)
