@@ -54,7 +54,7 @@ class SerialStream:
         return self.port.write(data)
 
     def send(self, _packet_name, **kwargs):
-        packet = self.parser_generator.generate(_packet_name, **kwargs)
+        packet = self.parser_generator.generate(_packet_name=_packet_name, _port_info=self.port_info, **kwargs)
         if self.on_tx_packet != None:
             # trigger packet transmission callback
             self.on_tx_packet(packet)

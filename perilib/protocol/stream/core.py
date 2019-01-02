@@ -16,7 +16,7 @@ class StreamProtocol(perilib_protocol_core.Protocol):
     def get_packet_from_buffer(self, buffer, port_info=None, is_tx=False):
         return StreamPacket(buffer=buffer, port_info=port_info)
 
-    def get_packet_from_name_and_args(self, _packet_name, **kwargs):
+    def get_packet_from_name_and_args(self, _packet_name, _port_info, **kwargs):
         raise perilib_core.PerilibProtocolException(
                 "Cannot generate '%s' packet using base StreamProtocol method, "
                 "no definitions available", _packet_name)
@@ -226,9 +226,9 @@ class ParserGenerator:
                 # reset the parser
                 self.reset()
 
-    def generate(self, _packet_name, **kwargs):
-        # arg is x_packet_name to avoid unlikely collision with kwargs key
-        return self.protocol.get_packet_from_name_and_args(_packet_name, **kwargs)
+    def generate(self, _packet_name, _port_info, **kwargs):
+        # args are prefixed with '_' to avoid unlikely collision with kwargs key
+        return self.protocol.get_packet_from_name_and_args(_packet_name, _port_info, **kwargs)
 
     def _timed_out(self):
         if self.on_packet_timeout != None:
