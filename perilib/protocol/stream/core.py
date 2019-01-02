@@ -59,6 +59,10 @@ class StreamPacket(perilib_protocol_core.Packet):
             if len(arg_values) > 0:
                 s += ', '.join(arg_values) + ' '
             s += "}"
+        if self.port_info is not None:
+            s += " on %s" % (self.port_info.device)
+        else:
+            s += " on unidentified port"
         return s
 
     def get_packet_name(self):
