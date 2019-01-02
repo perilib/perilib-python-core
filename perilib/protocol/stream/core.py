@@ -27,8 +27,9 @@ class StreamPacket(perilib_protocol_core.Packet):
     TYPE_STR = ["generic"]
     TYPE_ARG_CONTEXT = ["args"]
 
-    def __init__(self, type=TYPE_GENERIC, definition=None, buffer=None, header=None, payload=None, footer=None, metadata=None, port_info=None):
+    def __init__(self, type=TYPE_GENERIC, name=None, definition=None, buffer=None, header=None, payload=None, footer=None, metadata=None, port_info=None):
         self.type = type
+        self.name = name
         self.definition = definition
         self.buffer = buffer
         self.header = header
@@ -38,6 +39,11 @@ class StreamPacket(perilib_protocol_core.Packet):
         self.port_info = port_info
             
         if self.definition is not None:
+            if self.name is None and "name" in self.definition:
+                # use name from packet definition
+                self.name = self.definition["sname"]
+            
+            # build whatever side of the packet is still missing
             if self.buffer is not None:
                 self.build_structure_from_buffer()
             elif self.header is not None or self.payload is not None or self.footer is not None:
@@ -51,8 +57,7 @@ class StreamPacket(perilib_protocol_core.Packet):
         if self.definition is None:
             s = "undefined %s packet" % self.TYPE_STR[self.type]
         else:
-            packet_name = self.get_packet_name()
-            s = "%s (%s): { " % (packet_name, self.TYPE_STR[self.type])
+            s = "%s (%s): { " % (self.name, self.TYPE_STR[self.type])
             arg_values = []
             for x in self.definition[self.TYPE_ARG_CONTEXT[self.type]]:
                 arg_values.append("%s: %s" % (x["name"], self.payload[x["name"]]))
@@ -65,11 +70,8 @@ class StreamPacket(perilib_protocol_core.Packet):
             s += " on unidentified port"
         return s
 
-    def get_packet_name(self):
-        return self.definition["name"]
-
     def build_structure_from_buffer(self):
-        # assemble metadata for header/payload/footer args as available
+        # assemble details for header/payload/footer args as available
         structure = {
             "header": {
                 "args": self.definition["header_args"] if "header_args" in self.definition else [],
