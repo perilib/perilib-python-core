@@ -41,7 +41,7 @@ class StreamPacket(perilib_protocol_core.Packet):
         if self.definition is not None:
             if self.name is None and "name" in self.definition:
                 # use name from packet definition
-                self.name = self.definition["sname"]
+                self.name = self.definition["name"]
             
             # build whatever side of the packet is still missing
             if self.buffer is not None:
