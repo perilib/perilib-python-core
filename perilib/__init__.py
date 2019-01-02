@@ -2,6 +2,9 @@
 Perilib is a collection
 """
 
-from . import core
+# .py files
+from . import perilib_core as core
+
+# submodule folders
 from . import protocol
 from . import monitor
