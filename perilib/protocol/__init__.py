@@ -1,5 +1,5 @@
 # .py files
-from . import protocol_core as core
+from . import core
 
 # submodule folders
 from . import stream

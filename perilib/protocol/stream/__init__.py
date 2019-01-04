@@ -1,3 +1,3 @@
 # .py files
-from . import protocol_stream_core as core
-from . import protocol_stream_serial as serial
+from . import core
+from . import serial
