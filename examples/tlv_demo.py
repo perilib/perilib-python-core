@@ -40,8 +40,14 @@ class App():
 
 def main():
     app = App()
-    [app.parser_generator.parse(x) for x in [0x01, 0x05, 0x48, 0x65, 0x6C, 0x6C, 0x6F]]
-    [app.parser_generator.parse(x) for x in [0x02, 0x05, 0x77, 0x6F, 0x72, 0x6C, 0x64]]
+    
+    # parse() call technique 1: actual bytes() object
+    app.parser_generator.parse(b"\x01\x05Hello")
+    
+    # parse() call technique 2: list of integers
+    app.parser_generator.parse([0x02, 0x05, 0x77, 0x6F, 0x72, 0x6C, 0x64])
+    
+    # parse() call technique 3: single integers
     [app.parser_generator.parse(x) for x in [0x03, 0x03, 0x54, 0x4C, 0x56]]
     [app.parser_generator.parse(x) for x in [0x04, 0x04, 0x64, 0x65, 0x6D, 0x6F]]
 
