@@ -1,5 +1,15 @@
 """
-Perilib is a collection
+PeriLib is a collection of cross-platform peripheral communication libraries,
+including hardware abstraction layers, protocol definitions, data stream parsers
+and generators, and related tools.
+
+The perilib-python package is an implementation of these things in Python. It is
+split at the top level into monitoring classes and protocol classes, and further
+subdivided into protocol types (currently streaming vs. register-based). See
+the submodule documentation for additional detail.
+
+Note that the current perilib-python implementation requires Python 3.x, and
+will not work in 2.x.
 """
 
 # .py files
