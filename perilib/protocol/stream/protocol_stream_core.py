@@ -188,45 +188,51 @@ class ParserGenerator:
             self.timer.cancel()
             self.timer = None
 
-    def parse(self, in_byte, port_info=None):
-        if self.parser_status == ParserGenerator.STATUS_IDLE:
-            # not already in a packet, so check byte against correct conditions
+    def parse(self, input_data, port_info=None):
+        if isinstance(input_data, (int,)):
+            # given a single integer, so convert it to bytes first
+            input_data = bytes([input_data])
+        elif isinstance(input_data, (list,)):
+            # given a list, so convert it to bytes first
+            input_data = bytes(input_data)
 
-            # run through start boundary test function
-            self.parser_status = self.protocol.test_packet_start(bytes([in_byte]), port_info)
+        for input_byte_as_int in input_data:
+            if self.parser_status == ParserGenerator.STATUS_IDLE:
+                # not already in a packet, so run through start boundary test function
+                self.parser_status = self.protocol.test_packet_start(bytes([input_byte_as_int]), port_info)
 
-            # if we just started and there's a defined timeout, start the timer
-            if self.parser_status != ParserGenerator.STATUS_IDLE and self.timeout is not None:
-                self.timer = threading.Timer(self.timeout, self._timed_out)
-                self.timer.start()
+                # if we just started and there's a defined timeout, start the timer
+                if self.parser_status != ParserGenerator.STATUS_IDLE and self.timeout is not None:
+                    self.timer = threading.Timer(self.timeout, self._timed_out)
+                    self.timer.start()
 
-        # if we are (or may be) in a packet now, process
-        if self.parser_status != ParserGenerator.STATUS_IDLE:
-            # add byte to the buffer
-            self.rx_buffer += bytes([in_byte])
+            # if we are (or may be) in a packet now, process
+            if self.parser_status != ParserGenerator.STATUS_IDLE:
+                # add byte to the buffer
+                self.rx_buffer += bytes([input_byte_as_int])
 
-            # continue testing start conditions if we haven't fully started yet
-            if self.parser_status == ParserGenerator.STATUS_STARTING:
-                self.parser_status = self.protocol.test_packet_start(self.rx_buffer, port_info)
+                # continue testing start conditions if we haven't fully started yet
+                if self.parser_status == ParserGenerator.STATUS_STARTING:
+                    self.parser_status = self.protocol.test_packet_start(self.rx_buffer, port_info)
 
-            # test for completion conditions if we've fully started
-            if self.parser_status == ParserGenerator.STATUS_IN_PROGRESS:
-                self.parser_status = self.protocol.test_packet_complete(self.rx_buffer, port_info)
+                # test for completion conditions if we've fully started
+                if self.parser_status == ParserGenerator.STATUS_IN_PROGRESS:
+                    self.parser_status = self.protocol.test_packet_complete(self.rx_buffer, port_info)
 
-            # process the complete packet if we finished
-            if self.parser_status == ParserGenerator.STATUS_COMPLETE:
-                # convert the buffer to a packet
-                try:
-                    self.last_rx_packet = self.protocol.get_packet_from_buffer(self.rx_buffer, port_info)
-                    if self.last_rx_packet is not None and self.on_rx_packet:
-                        # pass packet to receive callback
-                        self.on_rx_packet(self.last_rx_packet)
-                except perilib_core.PerilibProtocolException as e:
-                    if self.on_rx_error is not None:
-                        self.on_rx_error(e, self.rx_buffer, port_info)
+                # process the complete packet if we finished
+                if self.parser_status == ParserGenerator.STATUS_COMPLETE:
+                    # convert the buffer to a packet
+                    try:
+                        self.last_rx_packet = self.protocol.get_packet_from_buffer(self.rx_buffer, port_info)
+                        if self.last_rx_packet is not None and self.on_rx_packet:
+                            # pass packet to receive callback
+                            self.on_rx_packet(self.last_rx_packet)
+                    except perilib_core.PerilibProtocolException as e:
+                        if self.on_rx_error is not None:
+                            self.on_rx_error(e, self.rx_buffer, port_info)
 
-                # reset the parser
-                self.reset()
+                    # reset the parser
+                    self.reset()
 
     def generate(self, _packet_name, _port_info, **kwargs):
         # args are prefixed with '_' to avoid unlikely collision with kwargs key
