@@ -4,3 +4,6 @@
 [submodule "perilib/protocol/stream/generic"]
 	path = perilib/protocol/stream/generic
 	url = https://github.com/perilib/perilib-python-generic
+[submodule "perilib/protocol/stream/robotis_dynamixel2"]
+	path = perilib/protocol/stream/robotis_dynamixel2
+	url = https://github.com/perilib/perilib-python-robotis-dynamixel2
