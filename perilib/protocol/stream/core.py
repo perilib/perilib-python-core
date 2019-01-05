@@ -152,14 +152,12 @@ class StreamPacket(perilib_protocol_core.Packet):
         # pack all arguments into binary buffer
         self.buffer = b''
 
-        # prepend header if defined
-        if "header_args" in self.definition:
-            self.prepend_header_to_buffer()
+        # allow arbitrary buffer manipulation, e.g. adding headers/footers
+        # (easier to re-implement just that instead of this whole method)
+        self.prepare_buffer_after_building()
 
-    def prepend_header_to_buffer(self):
-        raise perilib_core.PerilibProtocolException(
-                "Cannot prepend header to buffer using base StreamProtocol "
-                "method, no definitions available")
+    def prepare_buffer_after_building(self):
+        return
 
 class ParserGenerator:
 
