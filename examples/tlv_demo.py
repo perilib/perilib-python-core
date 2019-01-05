@@ -36,7 +36,7 @@ class App():
         print("[%.03f] RX: [%s] (%s)" % (time.time(), ' '.join(["%02X" % b for b in packet.buffer]), packet))
 
     def on_rx_error(self, e, rx_buffer, port_info):
-        print("[%.03f] ERROR: %s (raw data: [%s] from %s)" % (time.time(), e, ' '.join(["%02X" % b for b in rx_buffer]), port_info.name if port_info is not None else "unidentified port"))
+        print("[%.03f] ERROR: %s (raw data: [%s] from %s)" % (time.time(), e, ' '.join(["%02X" % b for b in rx_buffer]), port_info.device if port_info is not None else "unidentified port"))
 
 def main():
     app = App()
