@@ -1,6 +1,9 @@
 import serial
+import serial.tools.list_ports
 import threading
 
+from .. import core as perilib_core
+from .. import protocol as perilib_protocol
 from . import core
 
 class SerialStream(core.Stream):
@@ -14,8 +17,8 @@ class SerialStream(core.Stream):
                 self.port.open()
                 self._port_open = True
             if self.on_open_stream is not None:
-                # trigger port open callback
-                self.on_open_stream(self.port_info)
+                # trigger application callback
+                self.on_open_stream(self)
             self._monitor_thread = threading.Thread(target=self._watch_data)
             self._monitor_thread.daemon = True
             self._monitor_thread.start()
@@ -40,10 +43,10 @@ class SerialStream(core.Stream):
 
     def send(self, _packet_name, **kwargs):
         # TODO: move this to parser/generator class
-        packet = self.parser_generator.generate(_packet_name=_packet_name, _port_info=self.port_info, **kwargs)
-        if self.on_tx_packet is not None:
-            # trigger packet transmission callback
-            self.on_tx_packet(packet)
+        packet = self.parser_generator.generate(_packet_name=_packet_name, **kwargs)
+        if self.parser_generator.on_tx_packet is not None:
+            # trigger application callback
+            self.parser_generator.on_tx_packet(packet)
         return self.write(packet.buffer)
 
     def _assign_port(self, port):
@@ -72,7 +75,7 @@ class SerialStream(core.Stream):
                     # if more data is available now, read it immediately
                     data += self.port.read(self.port.in_waiting)
 
-                # pass data to receive callback
+                # pass data to internal receive callback
                 self._on_rx_data(data)
             except (OSError, serial.serialutil.SerialException) as e:
                 # read failed, probably port closed or device removed
@@ -81,7 +84,7 @@ class SerialStream(core.Stream):
 
         if self.on_close_stream is not None:
             # trigger port closure callback
-            self.on_close_stream(self.port_info)
+            self.on_close_stream(self)
 
         # close the port now if necessary (indicates device removal if so)
         if self._port_open:
@@ -99,8 +102,100 @@ class SerialStream(core.Stream):
                 self.is_open = False
 
                 if self.on_disconnect_device:
-                    # trigger disconnection callback
-                    self.on_disconnect_device(self.port_info)
+                    # trigger application callback
+                    self.on_disconnect_device(self)
 
         # remove ID from "terminate" list since we're about to end execution
         self._stop_thread_ident_list.remove(threading.get_ident())
+
+class SerialManager(core.Manager):
+
+    AUTO_OPEN_NONE = 0
+    AUTO_OPEN_SINGLE = 1
+    AUTO_OPEN_ALL = 2
+
+    def __init__(self, stream_class=None, protocol_class=None):
+        # run parent constructor
+        super().__init__()
+        
+        # these attributes may be updated by the application
+        self.stream_class = stream_class
+        self.protocol_class = protocol_class
+        self.on_rx_packet = None
+        self.on_tx_packet = None
+        self.on_rx_error = None
+        self.on_open_stream = None
+        self.on_close_stream = None
+        self.on_rx_data = None
+        self.on_tx_data = None
+        self.auto_open = SerialManager.AUTO_OPEN_NONE
+
+        # these attributes are intended to be read-only
+        self.streams = {}
+
+    def _get_port_list(self):
+        return serial.tools.list_ports.comports()
+        
+    def _on_connect_device(self, port_info):
+        run_builtin = True
+        if self.on_connect_device is not None:
+            # trigger the app-level connection callback
+            run_builtin = self.on_connect_device({"port_info": port_info})
+
+        if run_builtin != False and self.auto_open != SerialManager.AUTO_OPEN_NONE and self.stream_class is not None:
+            # open the stream if configured to do so
+            open_stream = False
+            if self.auto_open == SerialManager.AUTO_OPEN_ALL:
+                # every connection opens a new stream
+                open_stream = True
+            if self.auto_open == SerialManager.AUTO_OPEN_SINGLE:
+                # check whether we're already monitoring a stream
+                if not len(self.streams) == 0:
+                    # open a new stream for just this one
+                    open_stream = True
+                    
+                    # stop polling for port changes
+                    # (NOTE: data monitor itself catches disconnection)
+                    self.stop()
+
+            if open_stream == True:
+                # make sure the application provided everything necessary
+                if self.stream_class == None:
+                    raise perilib_core.PerilibHalException("Manager cannot auto-open stream without defined stream_class attribute")
+
+                # create and configure parser/generator object if protocol is available
+                parser_generator = None
+                if self.protocol_class != None:
+                    parser_generator = perilib_protocol.stream.core.ParserGenerator(protocol=self.protocol_class())
+                    parser_generator.on_disconnect_device = self._on_disconnect_device # use internal disconnection callback
+                    parser_generator.on_rx_packet = self.on_rx_packet
+                    parser_generator.on_tx_packet = self.on_tx_packet
+                    parser_generator.on_rx_error = self.on_rx_error
+
+                # create and configure data stream object
+                self.streams[port_info.device] = self.stream_class(port=port_info, parser_generator=parser_generator)
+                self.streams[port_info.device].on_open_stream = self.on_open_stream
+                self.streams[port_info.device].on_close_stream = self.on_close_stream
+                self.streams[port_info.device].on_rx_data = self.on_rx_data
+                self.streams[port_info.device].on_tx_data = self.on_tx_data
+                
+                # open the data stream
+                self.streams[port_info.device].open()
+
+    def _on_disconnect_device(self, port_info):
+        run_builtin = True
+        if self.on_disconnect_device is not None:
+            # trigger the app-level disconnection callback
+            run_builtin = self.on_disconnect_device({"port_info": port_info})
+
+        if run_builtin != False and port_info.device in self.streams:
+                # close the data stream if it's still running (unlikely)
+                self.streams[port_info.device].close()
+
+                # remove this port from the known device list to avoid
+                # double-triggering the disconnection callback (optional)
+                self.remove(port_info)
+
+                # resume monitoring for devices if we're not already
+                self.start()
+        

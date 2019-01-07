@@ -19,4 +19,3 @@ from . import core
 # submodule folders
 from . import protocol
 from . import hal
-from . import monitor

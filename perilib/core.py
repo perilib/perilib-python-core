@@ -16,15 +16,6 @@ class PerilibException(Exception):
     
     pass
 
-class PerilibMonitorException(PerilibException):
-    """Monitor exception class for device connectivity monitor functions
-    
-    Currently, Perilib code does not raise this exception, but it is provided
-    here as a base class for future expansion.
-    """
-    
-    pass
-
 class PerilibHalException(PerilibException):
     """Protocol exception class for any hardware access functions
     

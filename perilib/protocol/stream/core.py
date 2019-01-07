@@ -16,7 +16,7 @@ class StreamProtocol(perilib_protocol_core.Protocol):
     def get_packet_from_buffer(self, buffer, port_info=None, is_tx=False):
         return StreamPacket(buffer=buffer, port_info=port_info)
 
-    def get_packet_from_name_and_args(self, _packet_name, _port_info, **kwargs):
+    def get_packet_from_name_and_args(self, _packet_name, _parser_generator, **kwargs):
         raise perilib_core.PerilibProtocolException(
                 "Cannot generate '%s' packet using base StreamProtocol method, "
                 "no definitions available", _packet_name)
@@ -27,7 +27,7 @@ class StreamPacket(perilib_protocol_core.Packet):
     TYPE_STR = ["generic"]
     TYPE_ARG_CONTEXT = ["args"]
 
-    def __init__(self, type=TYPE_GENERIC, name=None, definition=None, buffer=None, header=None, payload=None, footer=None, metadata=None, port_info=None):
+    def __init__(self, type=TYPE_GENERIC, name=None, definition=None, buffer=None, header=None, payload=None, footer=None, metadata=None, stream=None, parser_generator=None):
         self.type = type
         self.name = name
         self.definition = definition
@@ -36,7 +36,14 @@ class StreamPacket(perilib_protocol_core.Packet):
         self.payload = payload
         self.footer = footer
         self.metadata = metadata
-        self.port_info = port_info
+        self.stream = stream
+        self.parser_generator = parser_generator
+        
+        # fill in potential references based using bidirectional link
+        if self.stream is None and self.parser_generator is not None:
+            self.stream = self.parser_generator.stream
+        elif self.stream is not None and self.parser_generator is None:
+            self.parser_generator = self.stream.parser_generator
             
         if self.definition is not None:
             if self.name is None and "name" in self.definition:
@@ -64,8 +71,8 @@ class StreamPacket(perilib_protocol_core.Packet):
             if len(arg_values) > 0:
                 s += ', '.join(arg_values) + ' '
             s += "}"
-        if self.port_info is not None:
-            s += " on %s" % (self.port_info.device)
+        if self.stream is not None:
+            s += " on %s" % (self.stream.port_info.device)
         else:
             s += " on unidentified port"
         return s
@@ -166,17 +173,15 @@ class ParserGenerator:
     STATUS_IN_PROGRESS = 2
     STATUS_COMPLETE = 3
 
-    def __init__(self, protocol=StreamProtocol(),
-                 on_rx_packet=None, on_packet_timeout=None, on_rx_error=None,
-                 test_packet_start=None, test_packet_complete=None,
-                 timeout=None):
+    def __init__(self, protocol=StreamProtocol()):
         self.protocol = protocol
-        self.on_rx_packet = on_rx_packet
-        self.on_packet_timeout = on_packet_timeout
-        self.on_rx_error = on_rx_error
-        self.timeout = timeout
+        self.on_rx_packet = None
+        self.on_packet_timeout = None
+        self.on_rx_error = None
+        self.timeout = None
         self.timer = None
         self.last_rx_packet = None
+        self.stream = None
         self.reset()
 
     def reset(self):
@@ -186,7 +191,7 @@ class ParserGenerator:
             self.timer.cancel()
             self.timer = None
 
-    def parse(self, input_data, port_info=None):
+    def parse(self, input_data, stream=None):
         if isinstance(input_data, (int,)):
             # given a single integer, so convert it to bytes first
             input_data = bytes([input_data])
@@ -197,7 +202,7 @@ class ParserGenerator:
         for input_byte_as_int in input_data:
             if self.parser_status == ParserGenerator.STATUS_IDLE:
                 # not already in a packet, so run through start boundary test function
-                self.parser_status = self.protocol.test_packet_start(bytes([input_byte_as_int]), port_info)
+                self.parser_status = self.protocol.test_packet_start(bytes([input_byte_as_int]), self)
 
                 # if we just started and there's a defined timeout, start the timer
                 if self.parser_status != ParserGenerator.STATUS_IDLE and self.timeout is not None:
@@ -211,35 +216,35 @@ class ParserGenerator:
 
                 # continue testing start conditions if we haven't fully started yet
                 if self.parser_status == ParserGenerator.STATUS_STARTING:
-                    self.parser_status = self.protocol.test_packet_start(self.rx_buffer, port_info)
+                    self.parser_status = self.protocol.test_packet_start(self.rx_buffer, self)
 
                 # test for completion conditions if we've fully started
                 if self.parser_status == ParserGenerator.STATUS_IN_PROGRESS:
-                    self.parser_status = self.protocol.test_packet_complete(self.rx_buffer, port_info)
+                    self.parser_status = self.protocol.test_packet_complete(self.rx_buffer, self)
 
                 # process the complete packet if we finished
                 if self.parser_status == ParserGenerator.STATUS_COMPLETE:
                     # convert the buffer to a packet
                     try:
-                        self.last_rx_packet = self.protocol.get_packet_from_buffer(self.rx_buffer, port_info)
+                        self.last_rx_packet = self.protocol.get_packet_from_buffer(self.rx_buffer, self)
                         if self.last_rx_packet is not None and self.on_rx_packet:
                             # pass packet to receive callback
                             self.on_rx_packet(self.last_rx_packet)
                     except perilib_core.PerilibProtocolException as e:
                         if self.on_rx_error is not None:
-                            self.on_rx_error(e, self.rx_buffer, port_info)
+                            self.on_rx_error(e, self.rx_buffer, stream)
 
                     # reset the parser
                     self.reset()
 
-    def generate(self, _packet_name, _port_info, **kwargs):
+    def generate(self, _packet_name, **kwargs):
         # args are prefixed with '_' to avoid unlikely collision with kwargs key
-        return self.protocol.get_packet_from_name_and_args(_packet_name, _port_info, **kwargs)
+        return self.protocol.get_packet_from_name_and_args(_packet_name, _parser_generator=self, **kwargs)
 
     def _timed_out(self):
         if self.on_packet_timeout is not None:
             # pass partial packet to timeout callback
-            self.on_packet_timeout(self.rx_buffer)
+            self.on_packet_timeout(self.rx_buffer, self)
 
         # reset the parser
         self.reset()
