@@ -68,14 +68,6 @@ class SerialStream(core.Stream):
             self.on_tx_data(data, self)
         return self.device.port.write(data)
 
-    def send(self, _packet_name, **kwargs):
-        # TODO: move this to parser/generator class
-        packet = self.parser_generator.generate(_packet_name=_packet_name, **kwargs)
-        if self.parser_generator.on_tx_packet is not None:
-            # trigger application callback
-            self.parser_generator.on_tx_packet(packet)
-        return self.write(packet.buffer)
-
     def _watch_data(self):
         # loop until externally instructed to stop
         while threading.get_ident() not in self._stop_thread_ident_list:

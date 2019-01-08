@@ -239,6 +239,16 @@ class ParserGenerator:
         # args are prefixed with '_' to avoid unlikely collision with kwargs key
         return self.protocol_class.get_packet_from_name_and_args(_packet_name, self, **kwargs)
 
+    def send(self, _packet_name, **kwargs):
+        packet = self.generate(_packet_name=_packet_name, **kwargs)
+        self._on_tx_packet(packet)
+        return self.stream.write(packet.buffer)
+        
+    def _on_tx_packet(self, packet):
+        if self.on_tx_packet is not None:
+            # trigger application callback
+            self.on_tx_packet(packet)
+
     def _timed_out(self):
         if self.on_packet_timeout is not None:
             # pass partial packet to timeout callback
