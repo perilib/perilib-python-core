@@ -170,7 +170,7 @@ class SerialManager(core.Manager):
                 open_stream = True
             if self.auto_open == SerialManager.AUTO_OPEN_SINGLE:
                 # check whether we're already monitoring a stream
-                if not len(self.streams) == 0:
+                if len(self.streams) == 0:
                     # open a new stream for just this one
                     open_stream = True
                     
