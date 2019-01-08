@@ -11,16 +11,16 @@ import perilib.protocol.stream.generic
 class App():
 
     def __init__(self):
-        # set up protocol parser (handles imcoming data and builds outgoing data)
-        self.parser_generator = perilib.protocol.stream.core.ParserGenerator(protocol=LTVProtocol())
+        # set up protocol parser (handles incoming data and builds outgoing data)
+        self.parser_generator = perilib.protocol.stream.core.ParserGenerator(protocol_class=perilib.protocol.stream.generic.LTVProtocol)
         self.parser_generator.on_rx_packet = self.on_rx_packet
         self.parser_generator.on_rx_error = self.on_rx_error
 
     def on_rx_packet(self, packet):
-        print("[%.03f] RX: [%s] (%s)" % (time.time(), ' '.join(["%02X" % b for b in packet.buffer]), packet))
+        print("[%.03f] RXP: %s" % (time.time(), packet))
 
-    def on_rx_error(self, e, rx_buffer, port_info):
-        print("[%.03f] ERROR: %s (raw data: [%s] from %s)" % (time.time(), e, ' '.join(["%02X" % b for b in rx_buffer]), port_info.device if port_info is not None else "unidentified port"))
+    def on_rx_error(self, e, rx_buffer, parser_generator):
+        print("[%.03f] ERROR: %s (raw data: [%s] via %s)" % (time.time(), e, ' '.join(["%02X" % b for b in rx_buffer]), parser_generator))
 
 def main():
     app = App()
