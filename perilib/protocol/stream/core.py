@@ -7,16 +7,20 @@ class StreamProtocol(perilib_protocol_core.Protocol):
 
     rx_packet_timeout = None
 
-    def test_packet_start(self, buffer, is_tx=False):
+    @classmethod
+    def test_packet_start(cls, buffer, is_tx=False):
         return ParserGenerator.STATUS_IN_PROGRESS
 
-    def test_packet_complete(self, buffer, is_tx=False):
+    @classmethod
+    def test_packet_complete(cls, buffer, is_tx=False):
         return ParserGenerator.STATUS_COMPLETE
 
-    def get_packet_from_buffer(self, buffer, parser_generator=None, is_tx=False):
+    @classmethod
+    def get_packet_from_buffer(cls, buffer, parser_generator=None, is_tx=False):
         return StreamPacket(buffer=buffer, parser_generator=parser_generator)
 
-    def get_packet_from_name_and_args(self, _packet_name, _parser_generator=None, **kwargs):
+    @classmethod
+    def get_packet_from_name_and_args(cls, _packet_name, _parser_generator=None, **kwargs):
         raise perilib_core.PerilibProtocolException(
                 "Cannot generate '%s' packet using base StreamProtocol method, "
                 "no definitions available", _packet_name)
