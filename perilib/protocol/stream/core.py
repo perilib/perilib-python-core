@@ -71,7 +71,6 @@ class StreamPacket(perilib_protocol_core.Packet):
         if self.parser_generator is not None and self.parser_generator.stream is not None:
             s += " via %s" % (self.parser_generator.stream)
         else:
-            print(self.parser_generator.stream)
             s += " via unidentified stream"
         return s
 
