@@ -117,13 +117,18 @@ class SerialManager(core.Manager):
     AUTO_OPEN_SINGLE = 1
     AUTO_OPEN_ALL = 2
 
-    def __init__(self, device_class=SerialDevice, stream_class=None, protocol_class=None):
+    def __init__(self,
+            device_class=SerialDevice,
+            stream_class=SerialStream,
+            parser_generator_class=perilib_protocol.stream.core.ParserGenerator,
+            protocol_class=perilib_protocol.stream.core.StreamProtocol):
         # run parent constructor
         super().__init__()
         
         # these attributes may be updated by the application
         self.device_class = device_class
         self.stream_class = stream_class
+        self.parser_generator_class = parser_generator_class
         self.protocol_class = protocol_class
         self.on_connect_device = None
         self.on_disconnect_device = None
@@ -187,7 +192,7 @@ class SerialManager(core.Manager):
 
                 # create and configure parser/generator object if protocol is available
                 if self.protocol_class != None:
-                    parser_generator = perilib_protocol.stream.core.ParserGenerator(protocol_class=self.protocol_class, stream=self.streams[device.id])
+                    parser_generator = self.parser_generator_class(protocol_class=self.protocol_class, stream=self.streams[device.id])
                     parser_generator.on_disconnect_device = self._on_disconnect_device # use internal disconnection callback
                     parser_generator.on_rx_packet = self.on_rx_packet
                     parser_generator.on_tx_packet = self.on_tx_packet
