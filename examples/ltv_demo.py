@@ -1,28 +1,12 @@
+# check for local development repo in script path and use it for imports
+import os, sys
+path_parts = os.path.dirname(os.path.realpath(__file__)).split(os.sep)
+if "perilib-python-core" in path_parts:
+    sys.path.insert(0, os.sep.join(path_parts[:-path_parts[::-1].index("perilib-python-core")]))
+
 import time
-
-try:
-    # standard library installation
-    import perilib
-    print("Detected standard perilib-python installation")
-except ImportError as e:
-    # local development installation
-    import sys
-    sys.path.insert(0, "../../../..") # submodule upwards to perilib root
-    sys.path.insert(0, ".") # submodule root
-    try:
-        import perilib
-        print("Detected development perilib-python installation run from submodule root")
-    except ImportError as e:
-        sys.path.insert(0, "../../../../..") # submodule/examples upwards to perilib root
-        sys.path.insert(0, "..") # submodule/examples upwards to submodule root
-        try:
-            import perilib
-            print("Detected development perilib-python installation run from submodule/example folder")
-        except ImportError as e:
-            print("Unable to find perilib-python installation, cannot continue")
-            sys.exit(1)
-
-from perilib.protocol.stream.generic import LTVProtocol
+import perilib
+import perilib.protocol.stream.generic
 
 class App():
 
