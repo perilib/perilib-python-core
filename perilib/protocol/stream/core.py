@@ -181,6 +181,12 @@ class ParserGenerator:
         self.last_rx_packet = None
         self.reset()
 
+    def __str__(self):
+        if self.stream is not None:
+            return "par/gen on %s" % self.stream
+        else:
+            return "par/gen on unidentified stream"
+
     def reset(self):
         self.rx_buffer = b''
         self.parser_status = ParserGenerator.STATUS_IDLE
