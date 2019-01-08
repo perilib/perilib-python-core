@@ -150,11 +150,13 @@ class StreamPacket(perilib_protocol_core.Packet):
 
         # build out pack format string and verify all arguments
         pack_format = "<"
+        pack_values = []
         for arg in args:
             pack_format += StreamProtocol.types[arg["type"]]["pack"]
+            pack_values.append(self.payload[arg["name"]])
 
         # pack all arguments into binary buffer
-        self.buffer = b''
+        self.buffer = struct.pack(pack_format, *pack_values)
 
         # allow arbitrary buffer manipulation, e.g. adding headers/footers
         # (easier to re-implement just that instead of this whole method)
