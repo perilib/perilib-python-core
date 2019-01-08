@@ -153,7 +153,13 @@ class StreamPacket(perilib_protocol_core.Packet):
         pack_values = []
         for arg in args:
             pack_format += StreamProtocol.types[arg["type"]]["pack"]
-            pack_values.append(self.payload[arg["name"]])
+            if arg["type"] == "uint8a-greedy":
+                # greedy byte blob (no specified length prefix)
+                pack_format += "%ds" % len(self.payload[arg["name"]])
+                pack_values.append(bytes(self.payload[arg["name"]]))
+            else:
+                # standard argument
+                pack_values.append(self.payload[arg["name"]])
 
         # pack all arguments into binary buffer
         self.buffer = struct.pack(pack_format, *pack_values)
