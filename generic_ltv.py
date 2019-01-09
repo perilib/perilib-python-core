@@ -7,9 +7,9 @@ class LTVProtocol(perilib.protocol.stream.core.StreamProtocol):
         # simple terminal condition for LTV data, where L/T are single bytes
         # [length] [type] [v0, v1, ..., v<length>]
         if len(buffer) > 0 and len(buffer) == buffer[0] + 1:
-            return perilib.protocol.stream.core.ParserGenerator.STATUS_COMPLETE
+            return perilib.protocol.stream.core.StreamParserGenerator.STATUS_COMPLETE
         else:
-            return perilib.protocol.stream.core.ParserGenerator.STATUS_IN_PROGRESS
+            return perilib.protocol.stream.core.StreamParserGenerator.STATUS_IN_PROGRESS
 
     @classmethod
     def get_packet_from_buffer(cls, buffer, parser_generator=None, is_tx=False):
