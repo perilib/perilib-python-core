@@ -190,7 +190,10 @@ class SerialManager(core.Manager):
                 self.streams[device.id].on_close_stream = self.on_close_stream
                 self.streams[device.id].on_rx_data = self.on_rx_data
                 self.streams[device.id].on_tx_data = self.on_tx_data
-
+                
+                # give stream reference to device
+                self.devices[device.id].stream = self.streams[device.id]
+                
                 # create and configure parser/generator object if protocol is available
                 if self.protocol_class != None:
                     parser_generator = self.parser_generator_class(protocol_class=self.protocol_class, stream=self.streams[device.id])
