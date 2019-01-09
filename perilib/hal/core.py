@@ -5,11 +5,10 @@ from .. import core as perilib_core
 
 class Device:
     
-    def __init__(self, id):
+    def __init__(self, id, port=None, stream=None):
         self.id = id
-        self.bus = None
-        self.port = None
-        self.stream = None
+        self.port = port
+        self.stream = stream
     
     def __str__(self):
         return str(self.id)
