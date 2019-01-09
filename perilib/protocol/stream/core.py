@@ -9,11 +9,11 @@ class StreamProtocol(perilib_protocol_core.Protocol):
 
     @classmethod
     def test_packet_start(cls, buffer, is_tx=False):
-        return ParserGenerator.STATUS_IN_PROGRESS
+        return StreamParserGenerator.STATUS_IN_PROGRESS
 
     @classmethod
     def test_packet_complete(cls, buffer, is_tx=False):
-        return ParserGenerator.STATUS_COMPLETE
+        return StreamParserGenerator.STATUS_COMPLETE
 
     @classmethod
     def get_packet_from_buffer(cls, buffer, parser_generator=None, is_tx=False):
@@ -171,7 +171,7 @@ class StreamPacket(perilib_protocol_core.Packet):
     def prepare_buffer_after_building(self):
         return
 
-class ParserGenerator:
+class StreamParserGenerator:
 
     STATUS_IDLE = 0
     STATUS_STARTING = 1
@@ -197,7 +197,7 @@ class ParserGenerator:
 
     def reset(self):
         self.rx_buffer = b''
-        self.parser_status = ParserGenerator.STATUS_IDLE
+        self.parser_status = StreamParserGenerator.STATUS_IDLE
         if self.timer is not None:
             self.timer.cancel()
             self.timer = None
@@ -211,30 +211,30 @@ class ParserGenerator:
             input_data = bytes(input_data)
 
         for input_byte_as_int in input_data:
-            if self.parser_status == ParserGenerator.STATUS_IDLE:
+            if self.parser_status == StreamParserGenerator.STATUS_IDLE:
                 # not already in a packet, so run through start boundary test function
                 self.parser_status = self.protocol_class.test_packet_start(bytes([input_byte_as_int]), self)
 
                 # if we just started and there's a defined timeout, start the timer
-                if self.parser_status != ParserGenerator.STATUS_IDLE and self.timeout is not None:
+                if self.parser_status != StreamParserGenerator.STATUS_IDLE and self.timeout is not None:
                     self.timer = threading.Timer(self.timeout, self._timed_out)
                     self.timer.start()
 
             # if we are (or may be) in a packet now, process
-            if self.parser_status != ParserGenerator.STATUS_IDLE:
+            if self.parser_status != StreamParserGenerator.STATUS_IDLE:
                 # add byte to the buffer
                 self.rx_buffer += bytes([input_byte_as_int])
 
                 # continue testing start conditions if we haven't fully started yet
-                if self.parser_status == ParserGenerator.STATUS_STARTING:
+                if self.parser_status == StreamParserGenerator.STATUS_STARTING:
                     self.parser_status = self.protocol_class.test_packet_start(self.rx_buffer, self)
 
                 # test for completion conditions if we've fully started
-                if self.parser_status == ParserGenerator.STATUS_IN_PROGRESS:
+                if self.parser_status == StreamParserGenerator.STATUS_IN_PROGRESS:
                     self.parser_status = self.protocol_class.test_packet_complete(self.rx_buffer, self)
 
                 # process the complete packet if we finished
-                if self.parser_status == ParserGenerator.STATUS_COMPLETE:
+                if self.parser_status == StreamParserGenerator.STATUS_COMPLETE:
                     # convert the buffer to a packet
                     try:
                         self.last_rx_packet = self.protocol_class.get_packet_from_buffer(self.rx_buffer, self)
