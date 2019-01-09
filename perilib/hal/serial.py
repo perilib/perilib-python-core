@@ -185,6 +185,7 @@ class SerialManager(core.Manager):
 
                 # create and configure data stream object
                 self.streams[device.id] = self.stream_class(device=device)
+                self.streams[device.id].on_disconnect_device = self._on_disconnect_device # use internal disconnection callback
                 self.streams[device.id].on_open_stream = self.on_open_stream
                 self.streams[device.id].on_close_stream = self.on_close_stream
                 self.streams[device.id].on_rx_data = self.on_rx_data
@@ -193,7 +194,6 @@ class SerialManager(core.Manager):
                 # create and configure parser/generator object if protocol is available
                 if self.protocol_class != None:
                     parser_generator = self.parser_generator_class(protocol_class=self.protocol_class, stream=self.streams[device.id])
-                    parser_generator.on_disconnect_device = self._on_disconnect_device # use internal disconnection callback
                     parser_generator.on_rx_packet = self.on_rx_packet
                     parser_generator.on_tx_packet = self.on_tx_packet
                     parser_generator.on_rx_error = self.on_rx_error
