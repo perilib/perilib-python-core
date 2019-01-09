@@ -12,7 +12,7 @@ class Device:
         self.stream = None
     
     def __str__(self):
-        return str(self.port)
+        return str(self.id)
 
 class Stream:
 
