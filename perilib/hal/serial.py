@@ -214,6 +214,9 @@ class SerialManager(core.Manager):
             # trigger the app-level disconnection callback
             run_builtin = self.on_disconnect_device(device)
 
+        # remove the device itself from our list
+        del self.devices[device.id]
+
         # resume watching if we stopped due to AUTO_OPEN_SINGLE
         if self.auto_open == SerialManager.AUTO_OPEN_SINGLE and len(self.devices) == 0:
             self.start()
