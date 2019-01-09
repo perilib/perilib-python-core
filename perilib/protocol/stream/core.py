@@ -252,7 +252,7 @@ class StreamParserGenerator:
         # args are prefixed with '_' to avoid unlikely collision with kwargs key
         return self.protocol_class.get_packet_from_name_and_args(_packet_name, self, **kwargs)
 
-    def send(self, _packet_name, **kwargs):
+    def send_packet(self, _packet_name, **kwargs):
         packet = self.generate(_packet_name=_packet_name, **kwargs)
         self._on_tx_packet(packet)
         return self.stream.write(packet.buffer)
