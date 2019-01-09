@@ -19,8 +19,10 @@ class Stream:
         self.device = device
         self.parser_generator = parser_generator
 
+        self.on_open_stream = None
+        self.on_close_stream = None
         self.on_rx_data = None
-        self.on_tx_packet = None
+        self.on_tx_data = None
         self.on_disconnect_device = None
         
         self.is_open = False
