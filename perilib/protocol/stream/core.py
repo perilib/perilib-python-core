@@ -295,7 +295,8 @@ class StreamParserGenerator:
         
     def wait_packet(self, _packet_name=None):
         # wait until we finish processing the last event (avoid deadlock)
-        while self._wait_packet_event.is_set(): pass
+        while self._wait_packet_event.is_set() and self.response_pending is not None:
+            pass
             
         # check whether this is a new request ("wait for [x]") or a follow-up ("wait for whatever you're waiting for")
         if _packet_name is not None:
