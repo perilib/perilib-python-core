@@ -1,11 +1,13 @@
 import struct
+import threading
 
 from ... import core as perilib_core
 from .. import core as perilib_protocol_core
 
 class StreamProtocol(perilib_protocol_core.Protocol):
 
-    rx_packet_timeout = None
+    incoming_packet_timeout = None
+    response_packet_timeout = None
 
     @classmethod
     def test_packet_start(cls, buffer, is_tx=False):
@@ -182,11 +184,15 @@ class StreamParserGenerator:
         self.protocol_class = protocol_class
         self.stream = stream
         self.on_rx_packet = None
-        self.on_packet_timeout = None
         self.on_rx_error = None
-        self.timeout = None
-        self.timer = None
+        self.on_incoming_packet_timeout = None
+        self.on_response_packet_timeout = None
+        self.incoming_packet_timeout = self.protocol_class.incoming_packet_timeout
+        self.response_packet_timeout = self.protocol_class.response_packet_timeout
         self.last_rx_packet = None
+        self.response_pending = None
+        self._incoming_packet_timer = None
+        self._response_packet_timer = None
         self.reset()
 
     def __str__(self):
@@ -198,9 +204,9 @@ class StreamParserGenerator:
     def reset(self):
         self.rx_buffer = b''
         self.parser_status = StreamParserGenerator.STATUS_IDLE
-        if self.timer is not None:
-            self.timer.cancel()
-            self.timer = None
+        if self._incoming_packet_timer is not None:
+            self._incoming_packet_timer.cancel()
+            self._incoming_packet_timer = None
 
     def parse(self, input_data):
         if isinstance(input_data, (int,)):
@@ -216,9 +222,9 @@ class StreamParserGenerator:
                 self.parser_status = self.protocol_class.test_packet_start(bytes([input_byte_as_int]), self)
 
                 # if we just started and there's a defined timeout, start the timer
-                if self.parser_status != StreamParserGenerator.STATUS_IDLE and self.timeout is not None:
-                    self.timer = threading.Timer(self.timeout, self._timed_out)
-                    self.timer.start()
+                if self.parser_status != StreamParserGenerator.STATUS_IDLE and self.incoming_packet_timeout is not None:
+                    self._incoming_packet_timer = threading.Timer(self.incoming_packet_timeout, self._incoming_packet_timed_out)
+                    self._incoming_packet_timer.start()
 
             # if we are (or may be) in a packet now, process
             if self.parser_status != StreamParserGenerator.STATUS_IDLE:
@@ -253,19 +259,73 @@ class StreamParserGenerator:
         return self.protocol_class.get_packet_from_name_and_args(_packet_name, self, **kwargs)
 
     def send_packet(self, _packet_name, **kwargs):
+        # build the packet
         packet = self.generate(_packet_name=_packet_name, **kwargs)
-        self._on_tx_packet(packet)
-        return self.stream.write(packet.buffer)
         
+        # trigger internal (and possibly external) processing callbacks
+        self._on_tx_packet(packet)
+        
+        # transmit the data out via the stream
+        result = self.stream.write(packet.buffer)
+        
+        # clear the last received packet
+        self.last_rx_packet = None
+        
+        # automatically set up the response timer if necessary
+        if "response_required" in packet.definition:
+            self.response_pending = packet.definition["response_required"]
+            if self.response_pending is not None and self.response_packet_timeout is not None:
+                self._response_packet_timer = threading.Timer(self.response_packet_timeout, self._response_packet_timed_out)
+                self._response_packet_timer.start()
+                
+        return result
+        
+    def wait_packet(self, _packet_name):
+        # update pending packet details
+        self.response_pending = _packet_name
+        
+        # clear the last received packet
+        self.last_rx_packet = None
+        
+        # cancel the current response timeout timer if necessary
+        if self._response_packet_timer is not None:
+            self._response_packet_timer.cancel()
+            
+        # start a new response timeout timer
+        self._response_packet_timer = threading.Timer(self.response_packet_timeout, self._response_packet_timed_out)
+        self._response_packet_timer.start()
+
+        # wait for a matching packet
+        while self.response_pending is not None:
+            if self.last_rx_packet is not None and self.last_rx_packet.name == _packet_name:
+                # cancel timer, clear pending info, and return the packet
+                self._response_packet_timer.cancel()
+                self._response_packet_timer = None
+                self.response_pending = None
+                return self.last_rx_packet
+                
+        # return no packet since we didn't receive one
+        return None
+
     def _on_tx_packet(self, packet):
         if self.on_tx_packet is not None:
             # trigger application callback
             self.on_tx_packet(packet)
 
-    def _timed_out(self):
-        if self.on_packet_timeout is not None:
+    def _incoming_packet_timed_out(self):
+        if self.on_incoming_packet_timeout is not None:
             # pass partial packet to timeout callback
-            self.on_packet_timeout(self.rx_buffer, self)
+            self.on_incoming_packet_timeout(self.rx_buffer, self)
 
         # reset the parser
+        self._incoming_packet_timer = None
         self.reset()
+
+    def _response_packet_timed_out(self):
+        if self.on_response_packet_timeout is not None:
+            # pass partial packet to timeout callback
+            self.on_response_packet_timeout(self.response_pending, self)
+
+        # reset the pending response
+        self._response_packet_timer = None
+        self.response_pending = None

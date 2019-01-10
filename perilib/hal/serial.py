@@ -139,7 +139,8 @@ class SerialManager(core.Manager):
         self.on_rx_packet = None
         self.on_tx_packet = None
         self.on_rx_error = None
-        self.on_packet_timeout = None
+        self.on_incoming_packet_timeout = None
+        self.on_response_packet_timeout = None
         self.auto_open = SerialManager.AUTO_OPEN_NONE
 
         # these attributes are intended to be read-only
@@ -200,7 +201,8 @@ class SerialManager(core.Manager):
                     parser_generator.on_rx_packet = self.on_rx_packet
                     parser_generator.on_tx_packet = self.on_tx_packet
                     parser_generator.on_rx_error = self.on_rx_error
-                    parser_generator.on_packet_timeout = self.on_packet_timeout
+                    parser_generator.on_incoming_packet_timeout = self.on_incoming_packet_timeout
+                    parser_generator.on_response_packet_timeout = self.on_response_packet_timeout
                     self.streams[device.id].parser_generator = parser_generator
                 
                 # open the data stream
