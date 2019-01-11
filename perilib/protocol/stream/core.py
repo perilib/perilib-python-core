@@ -77,94 +77,45 @@ class StreamPacket(perilib_protocol_core.Packet):
         return s
 
     def build_structure_from_buffer(self):
-        # assemble details for header/payload/footer args as available
-        structure = {
-            "header": {
-                "args": self.definition["header_args"] if "header_args" in self.definition else [],
-                "unpack_format": "<",
-                "length": 0
-            },
-            "payload": {
-                "args": self.definition[self.TYPE_ARG_CONTEXT[self.type]],
-                "unpack_format": "<",
-                "length": 0
-            },
-            "footer": {
-                "args": self.definition["footer_args"] if "footer_args" in self.definition else [],
-                "unpack_format": "<",
-                "length": 0
-            },
-        }
+        # header (optional)
+        if "header_args" in self.definition:
+            header_packing_info = perilib_protocol_core.Protocol.calculate_packing_info(self.definition["header_args"])
+            header_expected_length = header_packing_info["expected_length"]
+            self.header = perilib_protocol_core.Protocol.unpack_values(
+                self.buffer[:header_expected_length],
+                self.definition["header_args"],
+                header_packing_info
+            )
+        else:
+            self.header = {}
+            header_expected_length = 0
+            
+        # footer (optional)
+        if "footer_args" in self.definition:
+            footer_packing_info = perilib_protocol_core.Protocol.calculate_packing_info(self.definition["footer_args"])
+            footer_expected_length = footer_packing_info["expected_length"]
+            self.footer = perilib_protocol_core.Protocol.unpack_values(
+                    self.buffer[-footer_expected_length:],
+                    self.definition["footer_args"],
+                    footer_packing_info)
+        else:
+            self.footer = {}
+            footer_expected_length = 0
 
-        # build out unpack format string and calculate expected byte count
-        for section in structure:
-            for arg in structure[section]["args"]:
-                structure[section]["unpack_format"] += StreamProtocol.types[arg["type"]]["pack"]
-                structure[section]["length"] += StreamProtocol.types[arg["type"]]["width"]
-
-        # combine all prescribed lengths for comparison with actual data
-        packet_length = structure["header"]["length"] + structure["payload"]["length"] + structure["footer"]["length"]
-
-        # make sure calculated lengths are sane
-        if packet_length > len(self.buffer):
-            raise perilib_core.PerilibProtocolException("Calculated minimum packet length %d exceeds actual packet length %d" % (packet_length, len(self.buffer)))
-
-        # unpack all values from binary buffer
-        self.header = self._unpack_arg_values(
-            structure["header"]["args"],
-            structure["header"]["length"],
-            structure["header"]["unpack_format"],
-            self.buffer[:structure["header"]["length"]]
-        )
-        self.payload = self._unpack_arg_values(
-            structure["payload"]["args"],
-            structure["payload"]["length"],
-            structure["payload"]["unpack_format"],
-            self.buffer[structure["header"]["length"]:len(self.buffer)-structure["footer"]["length"]]
-        )
-        self.footer = self._unpack_arg_values(
-            structure["footer"]["args"],
-            structure["footer"]["length"],
-            structure["footer"]["unpack_format"],
-            self.buffer[-structure["footer"]["length"]:]
-        )
-
-    def _unpack_arg_values(self, args, known_length, unpack_format, buffer):
-        dictionary = perilib_core.dotdict()
-        values = struct.unpack(unpack_format, buffer[:known_length])
-        for i, arg in enumerate(args):
-            if arg["type"] in ["uint8a-l8v", "uint8a-l16v", "uint8a-greedy"]:
-                # use the byte array contained in the rest of the payload
-                if arg["type"] != "uint8a-greedy" and values[i] + known_length != len(buffer):
-                    raise perilib_core.PerilibProtocolException("Specified variable payload length %d does not match actual remaining payload length %d" % (values[i], len(buffer) - known_length))
-                dictionary[arg["name"]] = buffer[known_length:]
-            elif arg["type"] == "macaddr":
-                # special handling for 6-byte MAC address
-                dictionary[arg["name"]] = [x for x in values[i]]
-            else:
-                # use the value extracted during unpacking
-                dictionary[arg["name"]] = values[i]
-        return dictionary
+        # payload (required)
+        payload_packing_info = perilib_protocol_core.Protocol.calculate_packing_info(self.definition[self.TYPE_ARG_CONTEXT[self.type]])
+        self.payload = perilib_protocol_core.Protocol.unpack_values(
+                self.buffer[header_expected_length:len(self.buffer)-footer_expected_length],
+                self.definition[self.TYPE_ARG_CONTEXT[self.type]],
+                payload_packing_info)
 
     def build_buffer_from_structure(self):
-        # identify correct set of args based on packet type
-        args = self.definition[self.TYPE_ARG_CONTEXT[self.type]]
-
-        # build out pack format string and verify all arguments
-        pack_format = "<"
-        pack_values = []
-        for arg in args:
-            pack_format += StreamProtocol.types[arg["type"]]["pack"]
-            if arg["type"] == "uint8a-greedy":
-                # greedy byte blob (no specified length prefix)
-                pack_format += "%ds" % len(self.payload[arg["name"]])
-                pack_values.append(bytes(self.payload[arg["name"]]))
-            else:
-                # standard argument
-                pack_values.append(self.payload[arg["name"]])
-
         # pack all arguments into binary buffer
-        self.buffer = struct.pack(pack_format, *pack_values)
+        payload_packing_info = perilib_protocol_core.Protocol.calculate_packing_info(self.definition[self.TYPE_ARG_CONTEXT[self.type]])
+        self.buffer = perilib_protocol_core.Protocol.pack_values(
+                self.payload,
+                self.definition[self.TYPE_ARG_CONTEXT[self.type]],
+                payload_packing_info)
 
         # allow arbitrary buffer manipulation, e.g. adding headers/footers
         # (easier to re-implement just that instead of this whole method)
