@@ -65,8 +65,11 @@ class Protocol():
         value_list = []
         for field in fields:
             if field["type"] == "uint8a-greedy":
-                # greedy byte blob (no specified length prefix)
-                value_list.append(bytes(values[field["name"]]))
+                # greedy byte blob with no specified length prefix, so it's only
+                # possible to know/specify the length at packing time
+                blob = bytes(values[field["name"]])
+                packing_info["pack_format"] += ("%ds" % len(blob))
+                value_list.append(blob)
             else:
                 # standard argument
                 value_list.append(values[field["name"]])
