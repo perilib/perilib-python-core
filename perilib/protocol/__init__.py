@@ -10,7 +10,7 @@ TODO: Support for register-based protocols used by many I2C slaves
 """
 
 # .py files
-from . import core
+from .core import *
 
 # submodule folders
 from . import stream

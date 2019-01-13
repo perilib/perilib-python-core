@@ -14,7 +14,7 @@ will not work in 2.x.
 """
 
 # .py files
-from . import core
+from .core import *
 
 # submodule folders
 from . import protocol

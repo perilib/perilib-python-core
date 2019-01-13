@@ -120,8 +120,8 @@ class SerialManager(core.Manager):
     def __init__(self,
             device_class=SerialDevice,
             stream_class=SerialStream,
-            parser_generator_class=perilib_protocol.stream.core.StreamParserGenerator,
-            protocol_class=perilib_protocol.stream.core.StreamProtocol):
+            parser_generator_class=perilib_protocol.stream.StreamParserGenerator,
+            protocol_class=perilib_protocol.stream.StreamProtocol):
         # run parent constructor
         super().__init__()
         
