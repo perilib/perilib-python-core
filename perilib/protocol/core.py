@@ -86,7 +86,7 @@ class Protocol():
         
         # make sure calculated lengths are sane
         if packing_info["expected_length"] > len(buffer):
-            raise perilib.PerilibProtocolException("Calculated minimum buffer length %d exceeds actual buffer length %d" % (expected_length, len(buffer)))
+            raise perilib_core.PerilibProtocolException("Calculated minimum buffer length %d exceeds actual buffer length %d" % (expected_length, len(buffer)))
 
         unpacked = struct.unpack(packing_info["pack_format"], buffer[:packing_info["expected_length"]])
         for i, field in enumerate(fields):
