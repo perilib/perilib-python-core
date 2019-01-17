@@ -3,6 +3,11 @@ import struct
 from .. import core as perilib_core
 
 class Protocol():
+    """Base class underpinning both stream-based and register-based protocols.
+    
+    This contains class attributes and methods capable of describing, packing,
+    and unpacking binary data to and from byte buffers. Further detail and
+    transport-specific processing are left to subclasses."""
 
     types = {
         "uint8":                { "pack": "B", "width": 1 },
@@ -21,6 +26,9 @@ class Protocol():
     
     @classmethod
     def calculate_packing_info(cls, fields):
+        """Build a struct.pack format string and calculate expected data length
+        based on field definitions."""
+        
         pack_format = "<"
         expected_length = 0
 
@@ -40,6 +48,9 @@ class Protocol():
 
     @classmethod
     def calculate_field_offset(cls, fields, field_name):
+        """Determine the byte offset for a specific field within a packed byte
+        buffer."""
+        
         offset = 0
         for field in fields:
             if field["name"] == field_name:
@@ -59,6 +70,13 @@ class Protocol():
 
     @classmethod
     def pack_values(cls, values, fields, packing_info=None):
+        """Pack a dictionary into a binary buffer based on field definitions.
+        
+        If no packing info is provided as an argument, it will be obtained as
+        part of the process. It is allowed to be sent as an argument because
+        some external methods require access to it for pre-processing, and so
+        it would be a waste to force the calculation twice."""
+        
         if packing_info is None:
             packing_info = Protocol.calculate_packing_info(fields)
 
@@ -79,6 +97,13 @@ class Protocol():
         
     @classmethod
     def unpack_values(cls, buffer, fields, packing_info=None):
+        """Unpack a binary buffer into a dictionary based on field definitions.
+        
+        If no packing info is provided as an argument, it will be obtained as
+        part of the process. It is allowed to be sent as an argument because
+        some external methods require access to it for pre-processing, and so
+        it would be a waste to force the calculation twice."""
+
         values = perilib_core.dotdict()
         
         if packing_info is None:
@@ -109,5 +134,9 @@ class Protocol():
         return values
 
 class Packet():
+    """Base class underpinning both stream-based and register-based packets.
+    
+    Currently, this is just a filler class for inheritence purposes. All detail
+    and transport-specific processing are left to subclasses."""
 
     pass
