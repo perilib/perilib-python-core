@@ -18,7 +18,7 @@ class Stream:
     def __init__(self, device=None, parser_generator=None):
         self.device = device
         self.parser_generator = parser_generator
-
+        
         self.on_open_stream = None
         self.on_close_stream = None
         self.on_rx_data = None
@@ -74,16 +74,17 @@ class Manager:
         self.devices = {}
 
         # these attributes are intended to be private
+        self._monitor_thread = None
         self._running_thread_ident = 0
         self._stop_thread_ident_list = []
 
     def start(self):
         # don't start if we're already running
         if not self.is_running:
-            self.monitor_thread = threading.Thread(target=self._watch_devices)
-            self.monitor_thread.daemon = True
-            self.monitor_thread.start()
-            self._running_thread_ident = self.monitor_thread.ident
+            self._monitor_thread = threading.Thread(target=self._watch_devices)
+            self._monitor_thread.daemon = True
+            self._monitor_thread.start()
+            self._running_thread_ident = self._monitor_thread.ident
             self.is_running = True
 
     def stop(self):
