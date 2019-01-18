@@ -72,8 +72,8 @@ class SerialStream(core.Stream):
         # loop until externally instructed to stop
         while threading.get_ident() not in self._stop_thread_ident_list:
             try:
-                # read one byte at a time, no timeout (blocking, low CPU usage)
-                data = self.device.port.read(1)
+                # read one byte at first, no timeout (blocking, low CPU usage)
+                data = self.device.port.read()
                 if self.device.port.in_waiting != 0:
                     # if more data is available now, read it immediately
                     data += self.device.port.read(self.device.port.in_waiting)
