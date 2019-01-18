@@ -189,7 +189,7 @@ class SerialManager(core.Manager):
                 self.streams[device.id].on_disconnect_device = self._on_disconnect_device # use internal disconnection callback
                 self.streams[device.id].on_open_stream = self.on_open_stream
                 self.streams[device.id].on_close_stream = self.on_close_stream
-                self.streams[device.id].on_rx_data = self.on_rx_data
+                self.streams[device.id].on_rx_data = self._on_rx_data # use internal RX data callback
                 self.streams[device.id].on_tx_data = self.on_tx_data
                 
                 # give stream reference to device
@@ -228,3 +228,13 @@ class SerialManager(core.Manager):
         # resume watching if we stopped due to AUTO_OPEN_SINGLE
         if self.auto_open == SerialManager.AUTO_OPEN_SINGLE and len(self.devices) == 0:
             self.start()
+            
+    def _on_rx_data(self, data, stream):
+        run_builtin = True
+        if self.on_rx_data is not None:
+            # trigger the app-level RX data callback
+            run_builtin = self.on_rx_data(data, stream)
+            
+        if run_builtin != False and stream.parser_generator is not None:
+            # add data to parse queue
+            stream.parser_generator.queue(data)

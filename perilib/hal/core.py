@@ -51,15 +51,15 @@ class Stream:
         raise perilib_core.PerilibHalException("Child class has not implemented _watch_data() method, cannot use base class stub")
 
     def _on_rx_data(self, data):
+        # child class may re-implement
         run_builtin = True
-
         if self.on_rx_data:
             run_builtin = self.on_rx_data(data, self)
-
-        if run_builtin != False and self.parser_generator is not None:
-            # add data to parse queue
-            self.parser_generator.queue(data)
-
+            
+        # derived Stream classes can do special things at this point
+        #if run_builtin != False:
+            # do fun stuff automatically
+            
 class Manager:
     
     def __init__(self):
