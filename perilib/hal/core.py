@@ -94,14 +94,6 @@ class Manager:
             self._running_thread_ident = 0
             self.is_running = False
 
-    def remove(self, device):
-        try:
-            # manually remove a port from the list
-            # (most likely in data monitor disconnection callback)
-            self.devices.remove(device)
-        except ValueError as e:
-            pass
-
     def _watch_devices(self):
         while threading.get_ident() not in self._stop_thread_ident_list:
             # assume every previously connected device is no longer connected
