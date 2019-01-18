@@ -205,6 +205,9 @@ class SerialManager(core.Manager):
                     parser_generator.on_response_packet_timeout = self.on_response_packet_timeout
                     self.streams[device.id].parser_generator = parser_generator
                 
+                    # start the parser/generator thread
+                    self.streams[device.id].parser_generator.start()
+                    
                 # open the data stream
                 self.streams[device.id].open()
 

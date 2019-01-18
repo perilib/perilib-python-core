@@ -1,5 +1,7 @@
+import time
 import struct
 import threading
+import queue
 
 from ... import core as perilib_core
 from .. import core as perilib_protocol_core
@@ -132,6 +134,7 @@ class StreamParserGenerator:
     STATUS_COMPLETE = 3
 
     def __init__(self, protocol_class=StreamProtocol, stream=None):
+        # these attributes may be updated by the application
         self.protocol_class = protocol_class
         self.stream = stream
         self.on_rx_packet = None
@@ -140,12 +143,23 @@ class StreamParserGenerator:
         self.on_response_packet_timeout = None
         self.incoming_packet_timeout = self.protocol_class.incoming_packet_timeout
         self.response_packet_timeout = self.protocol_class.response_packet_timeout
+
+        # these attributes should only be read externally, not written
         self.last_rx_packet = None
         self.response_pending = None
-        self._incoming_packet_timer = None
-        self._response_packet_timer = None
+        self.is_running = False
+        self.rx_queue = queue.Queue()
+
+        # these attributes are intended to be private
+        self._incoming_packet_timer = threading.Timer(0, None)
+        self._response_packet_timer = threading.Timer(0, None)
         self._wait_packet_event = threading.Event()
         self._wait_timed_out = False
+        self._monitor_thread = None
+        self._running_thread_ident = 0
+        self._stop_thread_ident_list = []
+
+        # reset the parser explicitly
         self.reset()
 
     def __str__(self):
@@ -154,14 +168,28 @@ class StreamParserGenerator:
         else:
             return "par/gen on unidentified stream"
 
+    def start(self):
+        # don't start if we're already running
+        if not self.is_running:
+            self._monitor_thread = threading.Thread(target=self._watch_rx_queue)
+            self._monitor_thread.daemon = True
+            self._monitor_thread.start()
+            self._running_thread_ident = self._monitor_thread.ident
+            self.is_running = True
+
+    def stop(self):
+        # don't stop if we're not running
+        if self.is_running:
+            self._stop_thread_ident_list.append(self._running_thread_ident)
+            self._running_thread_ident = 0
+            self.is_running = False
+
     def reset(self):
         self.rx_buffer = b''
         self.parser_status = StreamParserGenerator.STATUS_IDLE
-        if self._incoming_packet_timer is not None:
-            self._incoming_packet_timer.cancel()
-            self._incoming_packet_timer = None
-
-    def parse(self, input_data):
+        self._incoming_packet_timer.cancel()
+        
+    def queue(self, input_data):
         if isinstance(input_data, (int,)):
             # given a single integer, so convert it to bytes first
             input_data = bytes([input_data])
@@ -169,13 +197,29 @@ class StreamParserGenerator:
             # given a list, so convert it to bytes first
             input_data = bytes(input_data)
 
+        # add new data to queue
+        [self.rx_queue.put(b) for b in input_data]
+
+    def parse(self, input_data):
+        if isinstance(input_data, (int,)):
+            # given a single integer, so convert it to bytes first
+            return self.parse_byte(input_data)
+        elif isinstance(input_data, (list,)):
+            # given a list, so convert it to bytes first
+            input_data = bytes(input_data)
+
+        # input_data here is now a bytes(...) buffer
         for input_byte_as_int in input_data:
+            self.parse_byte(input_byte_as_int)
+            
+    def parse_byte(self, input_byte_as_int):
             if self.parser_status == StreamParserGenerator.STATUS_IDLE:
                 # not already in a packet, so run through start boundary test function
                 self.parser_status = self.protocol_class.test_packet_start(bytes([input_byte_as_int]), self)
 
                 # if we just started and there's a defined timeout, start the timer
                 if self.parser_status != StreamParserGenerator.STATUS_IDLE and self.incoming_packet_timeout is not None:
+                    self._incoming_packet_timer.cancel()
                     self._incoming_packet_timer = threading.Timer(self.incoming_packet_timeout, self._incoming_packet_timed_out)
                     self._incoming_packet_timer.start()
 
@@ -197,35 +241,41 @@ class StreamParserGenerator:
                     # convert the buffer to a packet
                     try:
                         self.last_rx_packet = self.protocol_class.get_packet_from_buffer(self.rx_buffer, self)
+
+                        # reset the parser
+                        self.reset()
+                        
                         if self.last_rx_packet is not None:
-                            if self.on_rx_packet:
-                                # pass packet to receive callback
-                                self.on_rx_packet(self.last_rx_packet)
+                            release_wait_lock = False
                             if self.last_rx_packet.name == self.response_pending:
                                 # cancel timer and clear pending info
                                 self._response_packet_timer.cancel()
-                                self._response_packet_timer = None
-                                self.response_pending = None
+                                release_wait_lock = True
+
+                            if self.on_rx_packet:
+                                # pass packet to receive callback
+                                self.on_rx_packet(self.last_rx_packet)
                                 
-                                # fire the wait event if necessary
+                            # fire the wait event if necessary
+                            if release_wait_lock:
+                                self.response_pending = None
                                 self._wait_timed_out = False
                                 self._wait_packet_event.set()
                     except perilib_core.PerilibProtocolException as e:
                         if self.on_rx_error is not None:
                             self.on_rx_error(e, self.rx_buffer, self)
-
-                    # reset the parser
-                    self.reset()
-
+            else:
+                # still idle after parsing a byte, probably malformed/junk data
+                self._incoming_packet_timer.cancel()
+                                    
     def generate(self, _packet_name, **kwargs):
         # args are prefixed with '_' to avoid unlikely collision with kwargs key
         return self.protocol_class.get_packet_from_name_and_args(_packet_name, self, **kwargs)
 
     def send_packet(self, _packet_name, **kwargs):
-        # make sure we're not waiting for a response already
-        if self.response_pending is not None:
-            return False
-            
+        # wait until we're not busy
+        while self.response_pending is not None: pass
+
         # build the packet
         packet = self.generate(_packet_name=_packet_name, **kwargs)
         
@@ -238,18 +288,18 @@ class StreamParserGenerator:
         # automatically set up the response timer if necessary
         if "response_required" in packet.definition:
             self.response_pending = packet.definition["response_required"]
-            if self.response_pending is not None and self.response_packet_timeout is not None:
+            if self.response_pending is not None:
+                self._response_packet_timer.cancel()
                 self._response_packet_timer = threading.Timer(self.response_packet_timeout, self._response_packet_timed_out)
                 self._response_packet_timer.start()
                 
         return result
         
     def wait_packet(self, _packet_name=None):
-        # wait until we finish processing the last event (avoid deadlock)
-        while self._wait_packet_event.is_set() and self.response_pending is not None:
-            pass
-            
-        # check whether this is a new request ("wait for [x]") or a follow-up ("wait for whatever you're waiting for")
+        # wait until we're not busy
+        while self.response_pending is not None: pass
+        
+        # check whether this is a new request ("wait for [x]") or a follow-up ("wait for whatever you have pending already")
         if _packet_name is not None:
             # abort if we're waiting already and a new packet is requested
             if self.response_pending is not None:
@@ -257,14 +307,14 @@ class StreamParserGenerator:
             else:
                 # update pending packet details
                 self.response_pending = _packet_name
+                
+                # start a new response timeout timer if necessary (only for new requests)
+                self._response_packet_timer.cancel()
+                self._response_packet_timer = threading.Timer(self.response_packet_timeout, self._response_packet_timed_out)
+                self._response_packet_timer.start()
         
         # don't wait if we have nothing to wait for
         if self.response_pending is not None:
-            # start a new response timeout timer if necessary (only for new requests)
-            if self._response_packet_timer is None:
-                self._response_packet_timer = threading.Timer(self.response_packet_timeout, self._response_packet_timed_out)
-                self._response_packet_timer.start()
-            
             # pause execution until either success or timeout
             self._wait_packet_event.wait()
             self._wait_packet_event.clear()
@@ -289,7 +339,6 @@ class StreamParserGenerator:
             self.on_incoming_packet_timeout(self.rx_buffer, self)
 
         # reset the parser
-        self._incoming_packet_timer = None
         self.reset()
 
     def _response_packet_timed_out(self):
@@ -297,10 +346,17 @@ class StreamParserGenerator:
             # pass partial packet to timeout callback
             self.on_response_packet_timeout(self.response_pending, self)
             
-        # remove the timer and reset the pending response
-        self._response_packet_timer = None
+        # reset the pending response
         self.response_pending = None
 
         # fire the wait event if necessary
         self._wait_timed_out = True
         self._wait_packet_event.set()
+
+    def _watch_rx_queue(self):
+        while threading.get_ident() not in self._stop_thread_ident_list:
+            # get data from queue (blocking request)
+            self.parse_byte(self.rx_queue.get())
+
+        # remove ID from "terminate" list since we're about to end execution
+        self._stop_thread_ident_list.remove(threading.get_ident())

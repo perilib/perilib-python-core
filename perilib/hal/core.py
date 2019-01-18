@@ -57,8 +57,8 @@ class Stream:
             run_builtin = self.on_rx_data(data, self)
 
         if run_builtin != False and self.parser_generator is not None:
-            # pass all incoming data to parser
-            self.parser_generator.parse(data)
+            # add data to parse queue
+            self.parser_generator.queue(data)
 
 class Manager:
     
