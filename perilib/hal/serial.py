@@ -145,16 +145,30 @@ class SerialManager(core.Manager):
 
         # these attributes are intended to be read-only
         self.streams = {}
-
+        
+        # these attributes are intended to be private
+        self._recently_disconnected_devices = []
+        
     def _get_connected_devices(self):
         connected_devices = {}
         for port_info in serial.tools.list_ports.comports():
+            if port_info.device in self._recently_disconnected_devices:
+                # skip reporting this device for one iteration (works around rare
+                # but observed case where Windows shows a device as being still
+                # connected when a serial read operation has already thrown an
+                # exception due to an unavailable pipe)
+                continue
             if port_info.device in self.devices:
                 # use existing device instance
                 connected_devices[port_info.device] = self.devices[port_info.device]
             else:
                 # create new device instance
                 connected_devices[port_info.device] = self.device_class(port_info.device, port_info)
+                
+        # clean out list of recently disconnected devices
+        del self._recently_disconnected_devices[:]
+        
+        # send back the list of currently connected devices
         return connected_devices
         
     def _on_connect_device(self, device):
@@ -212,6 +226,9 @@ class SerialManager(core.Manager):
                 self.streams[device.id].open()
 
     def _on_disconnect_device(self, device):
+        # mark as recently disconnected
+        self._recently_disconnected_devices.append(device.id)
+
         # close and remove stream if it is open and/or just present
         if device.id in self.streams:
             self.streams[device.id].close()
