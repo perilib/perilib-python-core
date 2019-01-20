@@ -94,6 +94,10 @@ class Manager:
             self._running_thread_ident = 0
             self.is_running = False
 
+    def _get_connected_devices(self):
+        # child class must implement
+        raise perilib_core.PerilibHalException("Child class has not implemented _get_connected_devices() method, cannot use base class stub")
+
     def _watch_devices(self):
         while threading.get_ident() not in self._stop_thread_ident_list:
             # assume every previously connected device is no longer connected
