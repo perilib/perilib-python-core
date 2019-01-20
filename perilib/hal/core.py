@@ -4,6 +4,11 @@ import time
 from .. import core as perilib_core
 
 class Device:
+    """Base device class to be used by Manager objects.
+    
+    This class represents a single connected device, typically available via a
+    COMx port (Windows) or /dev/tty* on Linux or macOS. It could also be a HID
+    object or anything else uniquely identifiable and detected by a subclass."""
     
     def __init__(self, id, port=None, stream=None):
         self.id = id
@@ -14,6 +19,15 @@ class Device:
         return str(self.id)
 
 class Stream:
+    """Base stream class to manage bidirectional data streams.
+    
+    This class represents a data stream and is optionally associated with a
+    device and/or a parser/generator object to manage connectivity monitoring
+    and protocol decoding/encoding. However, it is fundamentally separate from
+    these higher and lower layers in the communication stack, and internally
+    manages only receiption and transmission of data. It spawns a dedicated
+    thread to monitor for incoming data, allowing the main application thread
+    to continue executing without blocking."""
 
     def __init__(self, device=None, parser_generator=None):
         self.device = device
@@ -61,6 +75,18 @@ class Stream:
             # do fun stuff automatically
             
 class Manager:
+    """Base manager class to coordinate device connectivity monitoring.
+    
+    This class provides a framework for detecting new device connections as well
+    as disconnections of previously visible devices. It also provides a generic
+    mechanism for filtering devices that may be interesting to the appliction,
+    although the specific application of this filter depends on the interface
+    that is used to detect and obtain information about connected devices (such
+    as serial ports or HID entities).
+    
+    This class should not be used directly, but rather used as a base for child
+    classes that use specific low-level communication drivers. As a minimum, a
+    child class must implement the _get_connected_devices() method."""
     
     def __init__(self):
         # these attributes may be updated by the application
