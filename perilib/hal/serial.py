@@ -7,6 +7,11 @@ from .. import protocol as perilib_protocol
 from . import core
 
 class SerialDevice(core.Device):
+    """Serial device class representing a single connected serial device.
+    
+    This class makes use of PySerial to provide access to and information about
+    a serial device. These are typically either built-in or connected via USB
+    ports on the host."""
 
     def __init__(self, id, port):
         super().__init__(id)
@@ -30,6 +35,12 @@ class SerialDevice(core.Device):
         return str(self.port_info)
     
 class SerialStream(core.Stream):
+    """Serial stream class providing a bidirectional data stream to a serial device.
+    
+    This class allows reading to and writing from a serial device, using PySerial
+    as the low-level driver. It also provides a thread-based non-blocking RX data
+    monitor and callback mechanism, which allows painless integration into even
+    the most complex parent application logic."""
 
     def __str__(self):
         return self.device.id
@@ -112,6 +123,18 @@ class SerialStream(core.Stream):
         self._stop_thread_ident_list.remove(threading.get_ident())
 
 class SerialManager(core.Manager):
+    """Serial device manager for abstracting stream and parser management.
+    
+    This class implements a comprehensive management layer on top of devices,
+    streams, protocols, and parser/generator instances. While parent application
+    code can manage these things independently, this code wraps everything into
+    a single interface to handle filtered device connection monitoring, data
+    stream control, packet parsing based on an externally defined protocol, and
+    various types of error detection.
+    
+    For many applications, the manager layer is the only one that will have to
+    be configured during initialization, and all lower-level interaction can be
+    left to the manager instance."""
 
     AUTO_OPEN_NONE = 0
     AUTO_OPEN_SINGLE = 1
