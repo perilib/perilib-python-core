@@ -7,6 +7,15 @@ from ... import core as perilib_core
 from .. import core as perilib_protocol_core
 
 class StreamProtocol(perilib_protocol_core.Protocol):
+    """Generic stream protocol definition.
+    
+    This class provides a foundation for stream-based protocols, including stub
+    methods required to detect packet boundaries and instantiate new packet
+    instances from incoming data. Without subclassing, this considers every new
+    byte to be a new packet, which is not suitable for virtually any real use
+    case. You will most likely need to implement a subclass with more specific
+    boundary detection (at the very least) suitable to the specific protocol
+    that is being used."""
 
     incoming_packet_timeout = None
     response_packet_timeout = None
@@ -30,6 +39,14 @@ class StreamProtocol(perilib_protocol_core.Protocol):
                 "no definitions available", _packet_name)
 
 class StreamPacket(perilib_protocol_core.Packet):
+    """Generic stream packet definition.
+    
+    This class represents a single packet in a stream-based protocol. It may be
+    either an incoming or outgoing packet, and may be created either from a byte
+    buffer (typically from from incoming data) or from a dictionary of payload
+    and possibly header/footer values (typically for outgoing data). This may
+    also be subclassed to protocol-specific packet definitions as required for
+    special classification or handling."""
 
     TYPE_GENERIC = 0
     TYPE_STR = ["generic"]
@@ -127,6 +144,21 @@ class StreamPacket(perilib_protocol_core.Packet):
         return
 
 class StreamParserGenerator:
+    """Parser/generator class for stream-based protocols.
+    
+    This class provides the framework for parsing (incoming) and generating
+    (outgoing) packets which adhere to a stream-based protocol. Incoming data
+    is parsed one byte at a time, and it is decoded based on the associated
+    protocol definition. Outgoing data is similarly built from payload, header,
+    and footer dictionaries using the same protocol definition.
+    
+    While the application layer may pass bytes to the `parse` method by hand,
+    this class also implements a thread-based queue watcher to provide simple
+    monitoring of incoming data (received by a Stream object) and subsequent
+    triggering of an application-level callback when a packet is fully parsed.
+    This allows the application to remain separated from any sort of low-level
+    data stream handling, and instead react only to complete, validated packets
+    as they arrive."""
 
     STATUS_IDLE = 0
     STATUS_STARTING = 1
