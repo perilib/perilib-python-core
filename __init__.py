@@ -4,5 +4,5 @@ of communication including type-length-value (TLV) and length-type-value (LTV).
 """
 
 # .py files
-from .generic_tlv import *
-from .generic_ltv import *
+from .protocol_tlv import *
+from .protocol_ltv import *
