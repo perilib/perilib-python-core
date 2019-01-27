@@ -11,11 +11,21 @@ class Device:
     object or anything else uniquely identifiable and detected by a subclass."""
     
     def __init__(self, id, port=None, stream=None):
+        """Initializes a device instance.
+        
+        The ID of the device is requires, while the port and stream may be
+        omitted."""
+        
         self.id = id
         self.port = port
         self.stream = stream
     
     def __str__(self):
+        """Generates the string representation of the device.
+        
+        This basic implementation simply uses the string representation of the
+        assigned ID attribute."""
+        
         return str(self.id)
 
 class Stream:
