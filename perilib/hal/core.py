@@ -37,9 +37,21 @@ class Stream:
     these higher and lower layers in the communication stack, and internally
     manages only receiption and transmission of data. It spawns a dedicated
     thread to monitor for incoming data, allowing the main application thread
-    to continue executing without blocking."""
+    to continue executing without blocking.
+    
+    This class should not be used directly, but rather used as a base for child
+    classes that use specific low-level communication drivers. As a minimum, a
+    child class must implement the `open()`, `close()`, `write()`, and
+    `_watch_data()` methods."""
 
     def __init__(self, device=None, parser_generator=None):
+        """Initializes a stream instance.
+        
+        A device (which has a stream) and parser/generator (which a stream has)
+        may be supplied at instantiation, or later if required. A stream does
+        not strictly need either of these things, but in most cases you will be
+        using both, so it makes sense to provide them for reference later."""
+
         self.device = device
         self.parser_generator = parser_generator
         
@@ -56,25 +68,94 @@ class Stream:
         self._stop_thread_ident_list = []
 
     def __str__(self):
+        """Generates the string representation of the device.
+        
+        This basic implementation simply uses the string representation of the
+        assigned device. If no device is supplied, this will of course return
+        the string "None" instead."""
+        
         return str(self.device)
 
     def open(self):
+        """Opens the stream.
+        
+        For example, a stream using PySerial as the underlying driver would use
+        the `open()` method on the serial port object whenever this method is
+        called.
+        
+        Since no driver is inherent in the base class, you *must* override this
+        method in child classes so that a suitable action occurs. Opening a
+        stream driven by nothing at all will generate an exception."""
+        
         # child class must implement
         raise perilib_core.PerilibHalException("Child class has not implemented open() method, cannot use base class stub")
 
     def close(self):
+        """Closes the stream.
+        
+        For example, a stream using PySerial as the underlying driver would use
+        the `close()` method on the serial port object whenever this method is
+        called.
+        
+        Since no driver is inherent in the base class, you *must* override this
+        method in child classes so that a suitable action occurs. Closing a
+        stream driven by nothing at all will generate an exception."""
+
         # child class must implement
         raise perilib_core.PerilibHalException("Child class has not implemented close() method, cannot use base class stub")
 
     def write(self, data):
+        """Sends outgoing data to the stream.
+        
+        For example, a stream using PySerial as the underlying driver would use
+        the `write()` method on the serial port object whenever this method is
+        called.
+        
+        Since no driver is inherent in the base class, you *must* override this
+        method in child classes so that a suitable action occurs. Writing data
+        to a stream driven by nothing at all will generate an exception."""
+
         # child class must implement
         raise perilib_core.PerilibHalException("Child class has not implemented write() method, cannot use base class stub")
 
     def _watch_data(self):
+        """Watches the stream for incoming data.
+        
+        For example, a stream using PySerial as the underlying driver would use
+        the `read()` method on the serial port object whenever this method is
+        called.
+        
+        Note that this method is not intended for application use; rather, it is
+        executed in a separate thread after the stream is opened in order to
+        allow a non-blocking mechanism for efficient RX monitoring. If any data
+        is received, this method will pass it to a the `_on_rx_data()` method
+        to be optionally processed and/or handed to the application-exposed
+        `on_rx_data()` callback.
+        
+        Overridden implementations of this method should run in an infinite loop
+        and safely handle any exceptions that might occur, so that the RX data
+        monitoring thread will not terminate unexpectedly.
+        
+        Since no driver is inherent in the base class, you *must* override this
+        method in child classes so that a suitable action occurs. Opening a
+        stream driven by nothing at all will generate an exception."""
+
         # child class must implement
         raise perilib_core.PerilibHalException("Child class has not implemented _watch_data() method, cannot use base class stub")
 
     def _on_rx_data(self, data):
+        """Handles incoming data.
+        
+        When the data watcher method receives any data (one or more bytes), that
+        chunk is passed to this method for processing. This simple default
+        implementation merely passes it directly to the application-level data
+        RX callback, if one is defined, with no additional buffering or
+        processing.
+        
+        Child classes *may* override this implementation, but often this will
+        not be necessary unless the stream itself needs extra insight into the
+        data content."""
+
         # child class may re-implement
         run_builtin = True
         if self.on_rx_data:
@@ -96,7 +177,7 @@ class Manager:
     
     This class should not be used directly, but rather used as a base for child
     classes that use specific low-level communication drivers. As a minimum, a
-    child class must implement the _get_connected_devices() method."""
+    child class must implement the `_get_connected_devices()` method."""
     
     def __init__(self):
         # these attributes may be updated by the application
