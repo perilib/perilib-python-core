@@ -180,6 +180,14 @@ class Manager:
     child class must implement the `_get_connected_devices()` method."""
     
     def __init__(self):
+        """Initializes a manager instance.
+        
+        The manager coordinates all necessary connections between a device,
+        stream, and parser/generator. In the Python implementation, it also
+        handles monitoring device connections and disconnections, especially in
+        the case of USB devices that may be inserted or unplugged at any time.
+        """
+
         # these attributes may be updated by the application
         self.device_filter = None
         self.on_connect_device = None
@@ -196,6 +204,16 @@ class Manager:
         self._stop_thread_ident_list = []
 
     def start(self):
+        """Starts monitoring for device conncecions and disconnections.
+        
+        The manager instance watches for connections and disconnections using
+        the low-level driver (in a subclass). Either of these events will
+        trigger an application-level callback with a device that triggered the
+        event. If automatical connections are enabled (either for the first
+        detected deivce or for all devices), then a new stream will be created
+        and (if supplied) a parser/generator object attached for convenient
+        handling of incoming and outgoing data."""
+
         # don't start if we're already running
         if not self.is_running:
             self._monitor_thread = threading.Thread(target=self._watch_devices)
@@ -205,6 +223,11 @@ class Manager:
             self.is_running = True
 
     def stop(self):
+        """Stops monitoring for device connections and disconnections.
+        
+        If the manager was previously monitoring device connectivity, this
+        method will stop it."""
+        
         # don't stop if we're not running
         if self.is_running:
             self._stop_thread_ident_list.append(self._running_thread_ident)
@@ -212,10 +235,38 @@ class Manager:
             self.is_running = False
 
     def _get_connected_devices(self):
+        """Gets a list of all currently connected devices.
+        
+        For example, a stream using PySerial as the underlying driver would use
+        the `.tools.list_ports.comports()` method whenever this method is
+        called.
+        
+        Since no driver is inherent in the base class, you *must* override this
+        method in child classes so that a suitable action occurs. Requesting a
+        device list driven by nothing at all will generate an exception."""
+
         # child class must implement
         raise perilib_core.PerilibHalException("Child class has not implemented _get_connected_devices() method, cannot use base class stub")
 
     def _watch_devices(self):
+        """Watches the system for connections and disconnections.
+        
+        Note that this method is not intended for application use; rather, it is
+        executed in a separate thread after the stream is opened in order to
+        allow a non-blocking mechanism for efficient device monitoring. If any
+        connections or disconnections are detected, this method will pass them
+        to a the `_on_connect_device()` or `_on_disconnect_device()` methods to
+        be optionally processed and/or handed to the application-exposed
+        callbacks.
+        
+        Overridden implementations of this method should run in an infinite loop
+        and safely handle any exceptions that might occur, so that the device
+        connection monitoring thread will not terminate unexpectedly.
+        
+        Since no driver is inherent in the base class, you *must* override this
+        method in child classes so that a suitable action occurs. Opening a
+        stream driven by nothing at all will generate an exception."""
+
         while threading.get_ident() not in self._stop_thread_ident_list:
             # assume every previously connected device is no longer connected
             ids_to_disconnect = list(self.devices.keys())
@@ -254,6 +305,17 @@ class Manager:
         self._stop_thread_ident_list.remove(threading.get_ident())
 
     def _on_connect_device(self, device):
+        """Handles device connections.
+        
+        When the connection watcher method detects a new device, that device is
+        passed to this method for processing. This simple default implementation
+        merely passes it directly to the application-level connection callback,
+        if one is defined, with no additional processing.
+        
+        Child classes *may* override this implementation, but often this will
+        not be necessary unless the manager needs extra insight into the device
+        details."""
+
         run_builtin = True
         if self.on_connect_device is not None:
             # trigger the app-level connection callback
@@ -264,6 +326,18 @@ class Manager:
             # do fun stuff automatically
 
     def _on_disconnect_device(self, device):
+        """Handles device disconnections.
+        
+        When the connection watcher method detects a removed device, that device
+        is passed to this method for processing. This simple default
+        implementation merely passes it directly to the application-level
+        disconnection callback, if one is defined, with no additional
+        processing.
+        
+        Child classes *may* override this implementation, but often this will
+        not be necessary unless the manager needs extra insight into the device
+        details."""
+
         run_builtin = True
         if self.on_disconnect_device is not None:
             # trigger the app-level disconnection callback
