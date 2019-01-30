@@ -13,8 +13,16 @@ class SerialDevice(core.Device):
     a serial device. These are typically either built-in or connected via USB
     ports on the host."""
 
-    def __init__(self, id, port):
-        super().__init__(id)
+    def __init__(self, id, port, stream=None):
+        """Initializes a serial device instance.
+        
+        The ID and port of the device are required, while the stream may be
+        omitted. The port should be either an actual serial port object from
+        the PySerial library (from which a ListPortInfo instance will be
+        identified), or a ListPortInfo instance (from which a serial port object
+        will be created)."""
+
+        super().__init__(id, port, stream)
 
         if type(port) is serial.tools.list_ports_common.ListPortInfo:
             # provided port info object
@@ -32,6 +40,11 @@ class SerialDevice(core.Device):
                     self.port_info = port_info
 
     def __str__(self):
+        """Generates the string representation of the serial device.
+        
+        This basic implementation simply uses the string representation of the
+        assigned port info object."""
+        
         return str(self.port_info)
     
 class SerialStream(core.Stream):
