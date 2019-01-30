@@ -13,7 +13,7 @@ class Device:
     def __init__(self, id, port=None, stream=None):
         """Initializes a device instance.
         
-        The ID of the device is requires, while the port and stream may be
+        The ID of the device is required, while the port and stream may be
         omitted."""
         
         self.id = id
@@ -68,7 +68,7 @@ class Stream:
         self._stop_thread_ident_list = []
 
     def __str__(self):
-        """Generates the string representation of the device.
+        """Generates the string representation of the stream.
         
         This basic implementation simply uses the string representation of the
         assigned device. If no device is supplied, this will of course return
