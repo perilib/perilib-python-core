@@ -28,6 +28,22 @@ class Device:
         
         return str(self.id)
 
+    def process(self, force=False, subs=True):
+        """Handle any pending events or data waiting to be processed.
+        
+        If the stream is being used in a non-threading arrangement, this method
+        should periodically be executed to manually step through all necessary
+        checks and trigger any relevant data processing and callbacks. Calling
+        this method will automatically call it on an associated parser/generator
+        object.
+        
+        This is the same method that would be called internally in an infinite
+        loop by the thread target, if threading is used."""
+        
+        if subs:
+            if self.stream is not None:
+                self.stream.process(force=force, subs=True)
+
 class Stream:
     """Base stream class to manage bidirectional data streams.
     
@@ -52,17 +68,21 @@ class Stream:
         not strictly need either of these things, but in most cases you will be
         using both, so it makes sense to provide them for reference later."""
 
+        # these attributes may be updated by the application
         self.device = device
         self.parser_generator = parser_generator
-        
+        self.use_threading = False
         self.on_open_stream = None
         self.on_close_stream = None
         self.on_rx_data = None
         self.on_tx_data = None
         self.on_disconnect_device = None
         
+        # these attributes should only be read externally, not written
+        self.is_running = False
         self.is_open = False
 
+        # these attributes are intended to be private
         self._port_open = False
         self._running_thread_ident = 0
         self._stop_thread_ident_list = []
@@ -118,6 +138,57 @@ class Stream:
         # child class must implement
         raise perilib_core.PerilibHalException("Child class has not implemented write() method, cannot use base class stub")
 
+    def start(self):
+        """Starts monitoring for incoming data.
+        
+        If you have not previously configured this object to use threading,
+        calling this method will enable it. If you do not want to use threading
+        in your app, you should periodically call the `process()` method in a
+        loop instead (either directly on the stream, or in the parent manager
+        object, if one exists)."""
+
+        # don't start if we're already running
+        if not self.is_running:
+            self._monitor_thread = threading.Thread(target=self._watch_data)
+            self._monitor_thread.daemon = True
+            self._monitor_thread.start()
+            self._running_thread_ident = self._monitor_thread.ident
+            self.use_threading = True
+            self.is_running = True
+
+    def stop(self):
+        """Stops monitoring for incoming data.
+        
+        If the stream was previously monitoring incoming data, this method will
+        stop it. This method is automatically called if the port is closed, but
+        you can also call it directly without closing the port if you wish to
+        switch to non-threaded or otherwise manual data monitoring."""
+        
+        # don't stop if we're not running
+        if self.is_running:
+            self._stop_thread_ident_list.append(self._running_thread_ident)
+            self._running_thread_ident = 0
+            self.is_running = False
+            
+    def process(self, force=False, subs=True):
+        """Handle any pending events or data waiting to be processed.
+        
+        If the stream is being used in a non-threading arrangement, this method
+        should periodically be executed to manually step through all necessary
+        checks and trigger any relevant data processing and callbacks. Calling
+        this method will automatically call it on an associated parser/generator
+        object.
+        
+        This is the same method that would be called internally in an infinite
+        loop by the thread target, if threading is used.
+        
+        Since no driver is inherent in the base class, you *must* override this
+        method in child classes so that a suitable action occurs. Processing a
+        stream driven by nothing at all will generate an exception."""
+
+        # child class must implement
+        raise perilib_core.PerilibHalException("Child class has not implemented process() method, cannot use base class stub")
+
     def _watch_data(self):
         """Watches the stream for incoming data.
         
@@ -128,7 +199,7 @@ class Stream:
         Note that this method is not intended for application use; rather, it is
         executed in a separate thread after the stream is opened in order to
         allow a non-blocking mechanism for efficient RX monitoring. If any data
-        is received, this method will pass it to a the `_on_rx_data()` method
+        is received, this method will pass it to the `_on_rx_data()` method
         to be optionally processed and/or handed to the application-exposed
         `on_rx_data()` callback.
         
@@ -137,8 +208,8 @@ class Stream:
         monitoring thread will not terminate unexpectedly.
         
         Since no driver is inherent in the base class, you *must* override this
-        method in child classes so that a suitable action occurs. Opening a
-        stream driven by nothing at all will generate an exception."""
+        method in child classes so that a suitable action occurs. Watching data
+        on a stream driven by nothing at all will generate an exception."""
 
         # child class must implement
         raise perilib_core.PerilibHalException("Child class has not implemented _watch_data() method, cannot use base class stub")
@@ -190,9 +261,10 @@ class Manager:
 
         # these attributes may be updated by the application
         self.device_filter = None
+        self.check_interval = 0.25
+        self.use_threading = False
         self.on_connect_device = None
         self.on_disconnect_device = None
-        self.check_interval = 0.25
         
         # these attributes should only be read externally, not written
         self.is_running = False
@@ -202,6 +274,7 @@ class Manager:
         self._monitor_thread = None
         self._running_thread_ident = 0
         self._stop_thread_ident_list = []
+        self._last_process_time = 0
 
     def start(self):
         """Starts monitoring for device conncecions and disconnections.
@@ -212,7 +285,12 @@ class Manager:
         event. If automatical connections are enabled (either for the first
         detected deivce or for all devices), then a new stream will be created
         and (if supplied) a parser/generator object attached for convenient
-        handling of incoming and outgoing data."""
+        handling of incoming and outgoing data.
+        
+        If you have not previously configured this object to use threading,
+        calling this method will enable it. If you do not want to use threading
+        in your app, you should periodically call the `process()` method in a
+        loop instead."""
 
         # don't start if we're already running
         if not self.is_running:
@@ -220,6 +298,7 @@ class Manager:
             self._monitor_thread.daemon = True
             self._monitor_thread.start()
             self._running_thread_ident = self._monitor_thread.ident
+            self.use_threading = True
             self.is_running = True
 
     def stop(self):
@@ -234,40 +313,31 @@ class Manager:
             self._running_thread_ident = 0
             self.is_running = False
 
-    def _get_connected_devices(self):
-        """Gets a list of all currently connected devices.
+    def process(self, force=False, subs=True):
+        """Handle any pending events or data waiting to be processed.
         
-        For example, a stream using PySerial as the underlying driver would use
-        the `.tools.list_ports.comports()` method whenever this method is
-        called.
+        If the manager is being used in a non-threading arrangement, this method
+        should periodically be executed to manually step through all necessary
+        checks and trigger any relevant data processing and callbacks. Calling
+        this method will automatically call it on all associated device objects.
         
-        Since no driver is inherent in the base class, you *must* override this
-        method in child classes so that a suitable action occurs. Requesting a
-        device list driven by nothing at all will generate an exception."""
+        This is the same method that is called internally in an infinite loop
+        by the thread target, if threading is used."""
 
-        # child class must implement
-        raise perilib_core.PerilibHalException("Child class has not implemented _get_connected_devices() method, cannot use base class stub")
+        """Handle any pending events or data waiting to be processed.
+        
+        If the manager and related objects are being used in a non-threading
+        arrangement, this method can be periodically executed to manually step
+        through all necessary checks and trigger any relevant data processing
+        and callbacks.
+        
+        This is the same method that is called internally in an infinite loop
+        by the thread, if threading is used."""
+        
+        # check for new devices on the configured interval
+        if force or time.time() - self._last_process_time >= self.check_interval:
+            self._last_process_time = time.time()
 
-    def _watch_devices(self):
-        """Watches the system for connections and disconnections.
-        
-        Note that this method is not intended for application use; rather, it is
-        executed in a separate thread after the stream is opened in order to
-        allow a non-blocking mechanism for efficient device monitoring. If any
-        connections or disconnections are detected, this method will pass them
-        to a the `_on_connect_device()` or `_on_disconnect_device()` methods to
-        be optionally processed and/or handed to the application-exposed
-        callbacks.
-        
-        Overridden implementations of this method should run in an infinite loop
-        and safely handle any exceptions that might occur, so that the device
-        connection monitoring thread will not terminate unexpectedly.
-        
-        Since no driver is inherent in the base class, you *must* override this
-        method in child classes so that a suitable action occurs. Opening a
-        stream driven by nothing at all will generate an exception."""
-
-        while threading.get_ident() not in self._stop_thread_ident_list:
             # assume every previously connected device is no longer connected
             ids_to_disconnect = list(self.devices.keys())
 
@@ -297,6 +367,47 @@ class Manager:
 
                     # remove this port from the list
                     del self.devices[device_id]
+                    
+        # allow known devices to process immediately
+        if subs:
+            for device_id in list(self.devices.keys()):
+                self.devices[device_id].process(force=force, subs=True)
+                
+    def _get_connected_devices(self):
+        """Gets a list of all currently connected devices.
+        
+        For example, a stream using PySerial as the underlying driver would use
+        the `.tools.list_ports.comports()` method whenever this method is
+        called.
+        
+        Since no driver is inherent in the base class, you *must* override this
+        method in child classes so that a suitable action occurs. Requesting a
+        device list driven by nothing at all will generate an exception."""
+
+        # child class must implement
+        raise perilib_core.PerilibHalException("Child class has not implemented _get_connected_devices() method, cannot use base class stub")
+
+    def _watch_devices(self):
+        """Watches the system for connections and disconnections.
+        
+        Note that this method is not intended for application use; rather, it is
+        executed in a separate thread after the stream is opened in order to
+        allow a non-blocking mechanism for efficient device monitoring. If any
+        connections or disconnections are detected, this method will pass them
+        to the `_on_connect_device()` or `_on_disconnect_device()` methods to be
+        optionally processed and/or handed to the application-exposed
+        callbacks.
+        
+        Overridden implementations of this method should run in an infinite loop
+        and safely handle any exceptions that might occur, so that the device
+        connection monitoring thread will not terminate unexpectedly.
+        
+        Since no driver is inherent in the base class, you *must* override this
+        method in child classes so that a suitable action occurs. Opening a
+        stream driven by nothing at all will generate an exception."""
+
+        while threading.get_ident() not in self._stop_thread_ident_list:
+            self.process()
 
             # wait before checking again
             time.sleep(self.check_interval)

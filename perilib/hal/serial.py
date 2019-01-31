@@ -73,10 +73,10 @@ class SerialStream(core.Stream):
             if self.on_open_stream is not None:
                 # trigger application callback
                 self.on_open_stream(self)
-            self._monitor_thread = threading.Thread(target=self._watch_data)
-            self._monitor_thread.daemon = True
-            self._monitor_thread.start()
-            self._running_thread_ident = self._monitor_thread.ident
+                
+            if self.use_threading:
+                self.start()
+                
             self.is_open = True
 
     def close(self):
@@ -96,9 +96,9 @@ class SerialStream(core.Stream):
                     self.device.port.close()
                 except (OSError, serial.serialutil.SerialException) as e:
                     pass
-            self._stop_thread_ident_list.append(self._running_thread_ident)
-            self._running_thread_ident = 0
-            self.is_open = False
+                    
+            # stop the RX data monitoring thread (ignored if not running)
+            self.stop()
 
     def write(self, data):
         """Writes data to the serial stream.
@@ -112,6 +112,37 @@ class SerialStream(core.Stream):
             self.on_tx_data(data, self)
         return self.device.port.write(data)
 
+    def process(self, force=False, subs=True):
+        """Handle any pending events or data waiting to be processed.
+        
+        If the stream is being used in a non-threading arrangement, this method
+        should periodically be executed to manually step through all necessary
+        checks and trigger any relevant data processing and callbacks. Calling
+        this method will automatically call it on an associated parser/generator
+        object.
+        
+        This is the same method that is called internally in an infinite loop
+        by the thread target, if threading is used."""
+
+        try:
+            # check for available data
+            if self.device.port.in_waiting != 0:
+                # read all available data
+                data = self.device.port.read(self.device.port.in_waiting)
+
+                # pass data to internal receive callback
+                self._on_rx_data(data)
+                
+            # allow associated parser/generator to process immediately
+            if subs:
+                if self.parser_generator is not None:
+                    self.parser_generator.process(force=force, subs=True)
+                
+        except (OSError, serial.serialutil.SerialException) as e:
+            # read failed, probably port closed or device removed
+            # trigger appropriate closure/disconnection callbacks
+            self._cleanup_port_closure()
+            
     def _watch_data(self):
         """Watches the serial stream for incoming data.
         
@@ -143,6 +174,13 @@ class SerialStream(core.Stream):
                 if threading.get_ident() not in self._stop_thread_ident_list:
                     self._stop_thread_ident_list.append(self._running_thread_ident)
 
+        # trigger appropriate closure/disconnection callbacks
+        self._cleanup_port_closure()
+
+        # remove ID from "terminate" list since we're about to end execution
+        self._stop_thread_ident_list.remove(threading.get_ident())
+
+    def _cleanup_port_closure(self):
         if self.on_close_stream is not None:
             # trigger port closure callback
             self.on_close_stream(self)
@@ -165,9 +203,6 @@ class SerialStream(core.Stream):
                 if self.on_disconnect_device:
                     # trigger application callback
                     self.on_disconnect_device(self.device)
-
-        # remove ID from "terminate" list since we're about to end execution
-        self._stop_thread_ident_list.remove(threading.get_ident())
 
 class SerialManager(core.Manager):
     """Serial device manager for abstracting stream and parser management.
@@ -259,9 +294,10 @@ class SerialManager(core.Manager):
                     # open a new stream for just this one
                     open_stream = True
                     
-                    # stop polling for port changes
-                    # (NOTE: data monitor itself catches disconnection)
-                    self.stop()
+                    if self.use_threading:
+                        # stop port change monitor thread
+                        # (NOTE: data monitor itself catches disconnection)
+                        self.stop()
 
             if open_stream == True:
                 # make sure the application provided everything necessary
@@ -275,6 +311,7 @@ class SerialManager(core.Manager):
                 self.streams[device.id].on_close_stream = self.on_close_stream
                 self.streams[device.id].on_rx_data = self._on_rx_data # use internal RX data callback
                 self.streams[device.id].on_tx_data = self.on_tx_data
+                self.streams[device.id].use_threading = self.use_threading
                 
                 # give stream reference to device
                 self.devices[device.id].stream = self.streams[device.id]
@@ -287,10 +324,12 @@ class SerialManager(core.Manager):
                     parser_generator.on_rx_error = self.on_rx_error
                     parser_generator.on_incoming_packet_timeout = self.on_incoming_packet_timeout
                     parser_generator.on_response_packet_timeout = self.on_response_packet_timeout
+                    parser_generator.use_threading = self.use_threading
                     self.streams[device.id].parser_generator = parser_generator
                 
-                    # start the parser/generator thread
-                    self.streams[device.id].parser_generator.start()
+                    if self.use_threading:
+                        # start the parser/generator thread
+                        self.streams[device.id].parser_generator.start()
                     
                 # open the data stream
                 self.streams[device.id].open()
@@ -313,7 +352,7 @@ class SerialManager(core.Manager):
         del self.devices[device.id]
 
         # resume watching if we stopped due to AUTO_OPEN_SINGLE
-        if self.auto_open == SerialManager.AUTO_OPEN_SINGLE and len(self.devices) == 0:
+        if self.use_threading and self.auto_open == SerialManager.AUTO_OPEN_SINGLE and len(self.devices) == 0:
             self.start()
             
     def _on_rx_data(self, data, stream):
