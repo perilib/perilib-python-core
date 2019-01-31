@@ -59,6 +59,12 @@ class SerialStream(core.Stream):
         return self.device.id
 
     def open(self):
+        """Opens the serial stream.
+        
+        This opens the serial port if it is not already open, and starts an
+        incoming data monitor thread to capture data from the port. This thread
+        continues as long as the stream (port) remains open."""
+
         # don't start if we're already running
         if not self.is_open:
             if not self.device.port.is_open:
@@ -74,6 +80,14 @@ class SerialStream(core.Stream):
             self.is_open = True
 
     def close(self):
+        """Closes the serial stream.
+        
+        This closes the serial port if it is currently open, and stops the
+        incoming data monitor thread. Note that this method does *not* directly
+        trigger the application-level stream closure callback (if assigned), but
+        instead waits for the thread to catch the closure flag and finish its
+        own execution (which triggers the callback)."""
+
         # don't close if we're not open
         if self.is_open:
             if self._port_open:
@@ -87,12 +101,32 @@ class SerialStream(core.Stream):
             self.is_open = False
 
     def write(self, data):
+        """Writes data to the serial stream.
+        
+        This transmits data to the serial stream using the standard serial
+        `write` method. The data argument should be a `bytes()` object, or
+        something that can be transparently converted to a `bytes()` object."""
+
         if self.on_tx_data is not None:
             # trigger application callback
             self.on_tx_data(data, self)
         return self.device.port.write(data)
 
     def _watch_data(self):
+        """Watches the serial stream for incoming data.
+        
+        To minimize CPU usage, this method attempts to read a single byte from
+        the serial port with no read timeout. Once a single byte is read, it
+        then checks for any remaining data in the port's receive buffer, and
+        reads that in all at once. The entire blob of data is then passed to
+        the internal `_on_rx_data()` method, and the to the application-level
+        `on_rx_data()` callback (if assigned).
+        
+        If the port is unexpectedly closed, e.g. due to removal of a USB device,
+        the stream closure callback is triggered, and then the disconnection
+        callback is triggered (if assigned).
+        """
+        
         # loop until externally instructed to stop
         while threading.get_ident() not in self._stop_thread_ident_list:
             try:
