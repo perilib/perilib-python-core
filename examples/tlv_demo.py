@@ -36,4 +36,8 @@ def main():
     [app.parser_generator.parse(x) for x in [0x04, 0x04, 0x64, 0x65, 0x6D, 0x6F]]
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Ctrl+C detected, terminating script")
+        sys.exit(0)
