@@ -227,6 +227,18 @@ class SerialManager(core.Manager):
             stream_class=SerialStream,
             parser_generator_class=perilib_protocol.stream.StreamParserGenerator,
             protocol_class=perilib_protocol.stream.StreamProtocol):
+        """Initializes a serial manager instance.
+        
+        The manager coordinates all necessary connections between a device,
+        stream, and parser/generator. In the Python implementation, it also
+        handles monitoring device connections and disconnections, especially in
+        the case of USB devices that may be inserted or unplugged at any time.
+        This is done using PySerial as a driver for device detection.
+        
+        Unlike most of the overridden methods in this child class, this one runs
+        the parent (super) class method first.
+        """
+
         # run parent constructor
         super().__init__()
         
@@ -255,6 +267,15 @@ class SerialManager(core.Manager):
         self._recently_disconnected_devices = []
         
     def _get_connected_devices(self):
+        """Gets a list of all currently connected serial devices.
+        
+        The list of detected devices is merged with previously known devices
+        before being returned, so that devices that may have been modified in
+        some way (e.g. stream attached and/or opened) will retain their state.
+        Previously unknown devices are instantiated immediately, while known
+        devices are reused from their previous position in the internal device
+        list."""
+
         connected_devices = {}
         for port_info in serial.tools.list_ports.comports():
             if port_info.device in self._recently_disconnected_devices:
@@ -277,6 +298,15 @@ class SerialManager(core.Manager):
         return connected_devices
         
     def _on_connect_device(self, device):
+        """Handles serial device connections.
+        
+        When the connection watcher method detects a new device, that device is
+        passed to this method for processing. This implementation performs auto
+        opening if configured (either for the first device or for every device),
+        including the creation and attachment of stream and parser/generator
+        objects as required. Standard objects are used for this purpose unless
+        custom classes are assigned in the relevant manager attributes."""
+
         run_builtin = True
         if self.on_connect_device is not None:
             # trigger the app-level connection callback
@@ -335,6 +365,13 @@ class SerialManager(core.Manager):
                 self.streams[device.id].open()
 
     def _on_disconnect_device(self, device):
+        """Handles device disconnections.
+        
+        When the connection watcher method detects a removed device, that device
+        is passed to this method for processing. This implementation handles
+        automatic closing and removal of a data stream (if one is attached), and
+        resumes monitoring in the case of auto-open-first configuration."""
+
         # mark as recently disconnected
         self._recently_disconnected_devices.append(device.id)
 
@@ -356,6 +393,17 @@ class SerialManager(core.Manager):
             self.start()
             
     def _on_rx_data(self, data, stream):
+        """Automatically handles incoming data from a stream.
+        
+        When new data arrives into a serial stream attached to a device under
+        the purview of this manager, this method automatically passes it to the
+        relevant parser/generator object. The application itself could do this,
+        and indeed the RX data callback on the stream can be reassigned so that
+        this method is no longer used, but that partially defeats the purpose of
+        the manager. The default behavior is to let the manager do all of the
+        work so that the application can focus simply on handling and sending
+        packets."""
+
         run_builtin = True
         if self.on_rx_data is not None:
             # trigger the app-level RX data callback
