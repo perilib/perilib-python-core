@@ -22,10 +22,51 @@ class StreamProtocol(perilib_protocol_core.Protocol):
 
     @classmethod
     def test_packet_start(cls, buffer, is_tx=False):
+        """Test whether a packet has started.
+        
+        Since many protocols have a unique mechanism for determining the start
+        of a new frame (e.g. 0x55 byte), this method may be overridden to use a
+        more complex test based on the contents of the `buffer` argument (which
+        is a `bytes` object). The default implementation here assumes that any
+        data received is the beginning of a new packet.
+        
+        Available return values are STATUS_IN_PROGRESS to indicate that the
+        packet has started, STATUS_STARTING to indicate that additional bytes
+        are necessary before knowing for sure that the packet has started, and
+        STATUS_IDLE to indicate that no packet has started and the parser should
+        return to an idle state.
+        
+        This class method is called automatically by the parser/generator object
+        when new data is received and passed to the parse method."""
+        
         return StreamParserGenerator.STATUS_IN_PROGRESS
 
     @classmethod
     def test_packet_complete(cls, buffer, is_tx=False):
+        """Test whether a packet has finished.
+        
+        Almost every protocol has a way to determine when an incoming packet is
+        complete, especially if each packet may be a different length. Often,
+        packets end with a CRC block or other type of validation data that must
+        be checked in order to accept the packet as valid. This method may be
+        overridden to check whatever conditions are necessary against on the
+        contents of the `buffer` argument (which is a `bytes` object). The
+        default implementation here assumes any data is the end of a new packet.
+        
+        NOTE: in combination with the default start test condition, this means
+        that each individual byte received is treated as a complete packet. This
+        is ALMOST CERTAINLY not what you want, so one or both of these methods
+        should be overridden with specific conditions for real protocols.
+        
+        Suitable return values are STATUS_IN_PROGRESS to indicate that the
+        packet is not yet finished, STATUS_COMPLETE to indicate that the packet
+        is complete and valid and should be processed, and STATUS_IDLE to
+        indicate that the previously in-progresss packet has failed validation
+        of some type and data should be dropped.
+        
+        This class method is called automatically by the parser/generator object
+        when new data is received and passed to the parse method."""
+
         return StreamParserGenerator.STATUS_COMPLETE
 
     @classmethod
