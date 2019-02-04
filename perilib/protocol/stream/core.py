@@ -71,10 +71,55 @@ class StreamProtocol(perilib_protocol_core.Protocol):
 
     @classmethod
     def get_packet_from_buffer(cls, buffer, parser_generator=None, is_tx=False):
+        """Generates a packet object from a binary buffer.
+        
+        Internally, this method is called once an incoming packet is received
+        without error. This method accepts the buffer, parser/generator object,
+        and packet direction (RX or TX) and must assembled a fully populated
+        packet object using this information. The `is_tx` argument is provided
+        in case the direction of data flow is itself an indicator of the type of
+        packet, e.g. a command vs. response packet which structurally look the
+        same but must be one or the other based on which device sent the packet.
+        
+        The parser/generator object is also provided in case some specific state
+        information maintained by this object is required in order to correctly
+        identify the packet.
+        
+        This method must do the following:
+        
+        1. Identify the correct packet definition based on the binary content
+        2. Unpack all of the binary data into a dictionary
+        3. Validate the dictionary contents (argument data) based on the packet
+           definition
+
+        This default implementation does not assume anything about the buffer
+        content, but simply creates a packet instance directly without any
+        special processing. In virtually every real use case, child classes
+        *will* need to override this implementation."""
+        
         return StreamPacket(buffer=buffer, parser_generator=parser_generator)
 
     @classmethod
     def get_packet_from_name_and_args(cls, _packet_name, _parser_generator=None, **kwargs):
+        """Generates a packet object from a name and argument dictionary.
+        
+        Internally, this method is called in order to create a packet and fill
+        the binary buffer prior to transmission, typically as a result of a call
+        to the `send_packet()` or `send_and_wait()` method. The `kwargs`
+        dictionary contains the named packet arguments which must be converted
+        into a packed binary structure (if any are required).
+        
+        This method must do the following:
+        
+        1. Identify the correct packet definition based on the supplied name
+        2. Validate the supplied arguments based on the packet definition
+        3. Pack all of the arguments into a binary buffer (`bytes()` object)
+        
+        Child classes must override this method since this process requires a
+        custom protocol definition to work with, e.g. a list containing packet
+        structures and argument names/types for each packet, and this is not
+        available in the base class."""
+        
         raise perilib_core.PerilibProtocolException(
                 "Cannot generate '%s' packet using base StreamProtocol method, "
                 "no definitions available", _packet_name)
