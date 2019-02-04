@@ -380,6 +380,9 @@ class StreamParserGenerator:
                     except perilib_core.PerilibProtocolException as e:
                         if self.on_rx_error is not None:
                             self.on_rx_error(e, self.rx_buffer, self)
+
+                        # reset the parser
+                        self.reset()
             else:
                 # still idle after parsing a byte, probably malformed/junk data
                 self._incoming_packet_t0 = 0
