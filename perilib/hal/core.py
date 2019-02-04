@@ -261,7 +261,7 @@ class Manager:
 
         # these attributes may be updated by the application
         self.device_filter = None
-        self.check_interval = 0.25
+        self.check_interval = 1.0
         self.use_threading = False
         self.on_connect_device = None
         self.on_disconnect_device = None
