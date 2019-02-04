@@ -324,16 +324,6 @@ class Manager:
         This is the same method that is called internally in an infinite loop
         by the thread target, if threading is used."""
 
-        """Handle any pending events or data waiting to be processed.
-        
-        If the manager and related objects are being used in a non-threading
-        arrangement, this method can be periodically executed to manually step
-        through all necessary checks and trigger any relevant data processing
-        and callbacks.
-        
-        This is the same method that is called internally in an infinite loop
-        by the thread, if threading is used."""
-        
         # check for new devices on the configured interval
         if force or time.time() - self._last_process_time >= self.check_interval:
             self._last_process_time = time.time()
