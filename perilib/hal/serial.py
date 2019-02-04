@@ -24,7 +24,7 @@ class SerialDevice(core.Device):
 
         super().__init__(id, port, stream)
 
-        if type(port) is serial.tools.list_ports_common.ListPortInfo:
+        if isinstance(port, serial.tools.list_ports_common.ListPortInfo):
             # provided port info object
             self.port = serial.Serial()
             self.port.port = port.device
