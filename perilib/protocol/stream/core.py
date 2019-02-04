@@ -246,6 +246,10 @@ class StreamParserGenerator:
     data stream handling, and instead react only to complete, validated packets
     as they arrive."""
 
+    PROCESS_SELF = 1
+    PROCESS_SUBS = 2
+    PROCESS_BOTH = 3
+
     STATUS_IDLE = 0
     STATUS_STARTING = 1
     STATUS_IN_PROGRESS = 2
@@ -443,14 +447,12 @@ class StreamParserGenerator:
             result = self.wait_packet()
         return result
 
-    def process(self, force=False, subs=True):
+    def process(self, mode=PROCESS_BOTH, force=False):
         """Handle any pending events or data waiting to be processed.
         
-        If the stream is being used in a non-threading arrangement, this method
-        should periodically be executed to manually step through all necessary
-        checks and trigger any relevant data processing and callbacks. Calling
-        this method will automatically call it on an associated parser/generator
-        object.
+        If the parser/generator is being used in a non-threading arrangement,
+        this method should periodically be executed to manually step through all
+        necessary checks and trigger any relevant data processing and callbacks.
         
         This is the same method that is called internally in an infinite loop
         by the thread target, if threading is used."""

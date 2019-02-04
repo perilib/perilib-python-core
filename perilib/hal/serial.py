@@ -112,7 +112,7 @@ class SerialStream(core.Stream):
             self.on_tx_data(data, self)
         return self.device.port.write(data)
 
-    def process(self, force=False, subs=True):
+    def process(self, mode=core.Stream.PROCESS_BOTH, force=False):
         """Handle any pending events or data waiting to be processed.
         
         If the stream is being used in a non-threading arrangement, this method
@@ -126,7 +126,8 @@ class SerialStream(core.Stream):
 
         try:
             # check for available data
-            if self.device.port.in_waiting != 0:
+            if mode in [core.Stream.PROCESS_SELF, core.Stream.PROCESS_BOTH] \
+                    and self.device.port.in_waiting != 0:
                 # read all available data
                 data = self.device.port.read(self.device.port.in_waiting)
 
@@ -134,7 +135,7 @@ class SerialStream(core.Stream):
                 self._on_rx_data(data)
                 
             # allow associated parser/generator to process immediately
-            if subs:
+            if mode in [core.Stream.PROCESS_BOTH, core.Stream.PROCESS_SUBS]:
                 if self.parser_generator is not None:
                     self.parser_generator.process(force=force, subs=True)
                 

@@ -10,6 +10,10 @@ class Device:
     COMx port (Windows) or /dev/tty* on Linux or macOS. It could also be a HID
     object or anything else uniquely identifiable and detected by a subclass."""
     
+    PROCESS_SELF = 1
+    PROCESS_SUBS = 2
+    PROCESS_BOTH = 3
+    
     def __init__(self, id, port=None, stream=None):
         """Initializes a device instance.
         
@@ -28,7 +32,7 @@ class Device:
         
         return str(self.id)
 
-    def process(self, force=False, subs=True):
+    def process(self, mode=PROCESS_BOTH, force=False):
         """Handle any pending events or data waiting to be processed.
         
         If the stream is being used in a non-threading arrangement, this method
@@ -40,9 +44,9 @@ class Device:
         This is the same method that would be called internally in an infinite
         loop by the thread target, if threading is used."""
         
-        if subs:
+        if mode in [Device.PROCESS_BOTH, Device.PROCESS_SUBS]:
             if self.stream is not None:
-                self.stream.process(force=force, subs=True)
+                self.stream.process(mode=Device.PROCESS_BOTH, force=force)
 
 class Stream:
     """Base stream class to manage bidirectional data streams.
@@ -60,6 +64,10 @@ class Stream:
     child class must implement the `open()`, `close()`, `write()`, and
     `_watch_data()` methods."""
 
+    PROCESS_SELF = 1
+    PROCESS_SUBS = 2
+    PROCESS_BOTH = 3
+    
     def __init__(self, device=None, parser_generator=None):
         """Initializes a stream instance.
         
@@ -170,7 +178,7 @@ class Stream:
             self._running_thread_ident = 0
             self.is_running = False
             
-    def process(self, force=False, subs=True):
+    def process(self, mode=PROCESS_BOTH, force=False):
         """Handle any pending events or data waiting to be processed.
         
         If the stream is being used in a non-threading arrangement, this method
@@ -250,6 +258,10 @@ class Manager:
     classes that use specific low-level communication drivers. As a minimum, a
     child class must implement the `_get_connected_devices()` method."""
     
+    PROCESS_SELF = 1
+    PROCESS_SUBS = 2
+    PROCESS_BOTH = 3
+    
     def __init__(self):
         """Initializes a manager instance.
         
@@ -263,6 +275,7 @@ class Manager:
         self.device_filter = None
         self.check_interval = 1.0
         self.use_threading = False
+        self.use_threading_subs = False
         self.on_connect_device = None
         self.on_disconnect_device = None
         
@@ -313,7 +326,7 @@ class Manager:
             self._running_thread_ident = 0
             self.is_running = False
 
-    def process(self, force=False, subs=True):
+    def process(self, mode=PROCESS_BOTH, force=False):
         """Handle any pending events or data waiting to be processed.
         
         If the manager is being used in a non-threading arrangement, this method
@@ -325,7 +338,8 @@ class Manager:
         by the thread target, if threading is used."""
 
         # check for new devices on the configured interval
-        if force or time.time() - self._last_process_time >= self.check_interval:
+        if mode in [Manager.PROCESS_SELF, Manager.PROCESS_BOTH] \
+                and (force or time.time() - self._last_process_time >= self.check_interval):
             self._last_process_time = time.time()
 
             # assume every previously connected device is no longer connected
@@ -359,9 +373,9 @@ class Manager:
                     del self.devices[device_id]
                     
         # allow known devices to process immediately
-        if subs:
+        if mode in [Manager.PROCESS_BOTH, Manager.PROCESS_SUBS]:
             for device_id in list(self.devices.keys()):
-                self.devices[device_id].process(force=force, subs=True)
+                self.devices[device_id].process(mode=Manager.PROCESS_BOTH, force=force)
                 
     def _get_connected_devices(self):
         """Gets a list of all currently connected devices.
@@ -397,7 +411,8 @@ class Manager:
         stream driven by nothing at all will generate an exception."""
 
         while threading.get_ident() not in self._stop_thread_ident_list:
-            self.process()
+            # process self, or self+subs if threaded subs is enabled
+            self.process(Manager.PROCESS_BOTH if self.use_threading_subs else Manager.PROCESS_SELF)
 
             # wait before checking again
             time.sleep(self.check_interval)
