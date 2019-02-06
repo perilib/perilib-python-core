@@ -262,6 +262,10 @@ class Manager:
     PROCESS_SUBS = 2
     PROCESS_BOTH = 3
     
+    MANAGER_THREADING = 1
+    STREAM_THREADING = 2
+    PARGEN_THREADING = 4
+    
     def __init__(self):
         """Initializes a manager instance.
         
@@ -274,8 +278,8 @@ class Manager:
         # these attributes may be updated by the application
         self.device_filter = None
         self.check_interval = 1.0
+        self.threading_flags = 0
         self.use_threading = False
-        self.use_threading_subs = False
         self.on_connect_device = None
         self.on_disconnect_device = None
         
@@ -289,6 +293,10 @@ class Manager:
         self._stop_thread_ident_list = []
         self._last_process_time = 0
 
+    def configure_threading(self, flags):
+        self.threading_flags = flags
+        self.use_threading = True if (self.threading_flags & Manager.MANAGER_THREADING) != 0 else False
+    
     def start(self):
         """Starts monitoring for device conncecions and disconnections.
         
@@ -312,6 +320,7 @@ class Manager:
             self._monitor_thread.start()
             self._running_thread_ident = self._monitor_thread.ident
             self.use_threading = True
+            self.threading_flags |= Manager.MANAGER_THREADING
             self.is_running = True
 
     def stop(self):
@@ -338,6 +347,7 @@ class Manager:
         by the thread target, if threading is used."""
 
         # check for new devices on the configured interval
+        t0 = time.time()
         if mode in [Manager.PROCESS_SELF, Manager.PROCESS_BOTH] \
                 and (force or time.time() - self._last_process_time >= self.check_interval):
             self._last_process_time = time.time()
@@ -412,7 +422,7 @@ class Manager:
 
         while threading.get_ident() not in self._stop_thread_ident_list:
             # process self, or self+subs if threaded subs is enabled
-            self.process(Manager.PROCESS_BOTH if self.use_threading_subs else Manager.PROCESS_SELF)
+            self.process(Manager.PROCESS_BOTH if ((self.threading_flags & Manager.STREAM_THREADING) != 0) else Manager.PROCESS_SELF)
 
             # wait before checking again
             time.sleep(self.check_interval)

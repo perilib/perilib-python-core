@@ -137,7 +137,7 @@ class SerialStream(core.Stream):
             # allow associated parser/generator to process immediately
             if mode in [core.Stream.PROCESS_BOTH, core.Stream.PROCESS_SUBS]:
                 if self.parser_generator is not None:
-                    self.parser_generator.process(force=force, subs=True)
+                    self.parser_generator.process(mode=core.Stream.PROCESS_BOTH, force=force)
                 
         except (OSError, serial.serialutil.SerialException) as e:
             # read failed, probably port closed or device removed
@@ -342,7 +342,7 @@ class SerialManager(core.Manager):
                 self.streams[device.id].on_close_stream = self.on_close_stream
                 self.streams[device.id].on_rx_data = self._on_rx_data # use internal RX data callback
                 self.streams[device.id].on_tx_data = self.on_tx_data
-                self.streams[device.id].use_threading = self.use_threading
+                self.streams[device.id].use_threading = True if (self.threading_flags & core.Manager.STREAM_THREADING) != 0 else False
                 
                 # give stream reference to device
                 self.devices[device.id].stream = self.streams[device.id]
@@ -355,15 +355,19 @@ class SerialManager(core.Manager):
                     parser_generator.on_rx_error = self.on_rx_error
                     parser_generator.on_incoming_packet_timeout = self.on_incoming_packet_timeout
                     parser_generator.on_response_packet_timeout = self.on_response_packet_timeout
-                    parser_generator.use_threading = self.use_threading
+                    parser_generator.use_threading = True if (self.threading_flags & core.Manager.PARGEN_THREADING) != 0 else False
                     self.streams[device.id].parser_generator = parser_generator
                 
-                    if self.use_threading:
-                        # start the parser/generator thread
+                    if parser_generator.use_threading:
+                        # start the parser/generator monitoring thread
                         self.streams[device.id].parser_generator.start()
                     
                 # open the data stream
                 self.streams[device.id].open()
+
+                if self.streams[device.id].use_threading:
+                    # start the stream monitoring thread
+                    self.streams[device.id].start()
 
     def _on_disconnect_device(self, device):
         """Handles device disconnections.
