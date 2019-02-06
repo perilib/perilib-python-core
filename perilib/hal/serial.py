@@ -127,6 +127,7 @@ class SerialStream(core.Stream):
         try:
             # check for available data
             if mode in [core.Stream.PROCESS_SELF, core.Stream.PROCESS_BOTH] \
+                    and self.is_open \
                     and self.device.port.in_waiting != 0:
                 # read all available data
                 data = self.device.port.read(self.device.port.in_waiting)
