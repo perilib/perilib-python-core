@@ -139,6 +139,22 @@ class StreamPacket(perilib_protocol_core.Packet):
     TYPE_ARG_CONTEXT = ["args"]
 
     def __init__(self, type=TYPE_GENERIC, name=None, definition=None, buffer=None, header=None, payload=None, footer=None, metadata=None, parser_generator=None):
+        """ Create a new stream packet instance.
+        
+        Supplying particular combinations of arguments to this constructor will
+        result in a fully populated/configured packet instance. Most often, this
+        is used to create a new packet object either from a binary buffer (which
+        is mapped to a packet name and argument dictionary for processing) or
+        from a packet name and argument dictionary (which is converted into a
+        binary buffer ready for transmission).
+        
+        In both of these cases, the structural definition of the packet must be
+        supplied as well, or no conversion can occur. It is assumed that the
+        caller will already have identified the right entry in the relevant
+        protocol class, and will then pass this along (with any required packet-
+        specific modifications) in the `definition` argument.
+        """
+        
         self.type = type
         self.name = name
         self.definition = definition
@@ -161,9 +177,22 @@ class StreamPacket(perilib_protocol_core.Packet):
                 self.build_buffer_from_structure()
 
     def __getitem__(self, arg):
+        """Convenience accessor for payload arguments.
+        
+        With this method, you can directly read payload entries without
+        explicitly using the `.payload` attribute, but rather using the packet
+        object itself as a dictionary."""
+        
         return self.payload[arg]
 
     def __str__(self):
+        """Generates the string representation of the device.
+        
+        This implementation displays the packet name, type, payload details, and
+        stream source (if available). It provides a good foundation for quick
+        console displays or debugging information. Raw binary structure is not
+        shown."""
+
         s = ""
         if self.definition is None:
             s = "undefined %s packet" % self.TYPE_STR[self.type]
