@@ -211,6 +211,16 @@ class StreamPacket(perilib_protocol_core.Packet):
         return s
 
     def build_structure_from_buffer(self):
+        """Fills packet structure data based on a byte buffer and definition.
+        
+        This method uses the already-stored packet definition and binary byte
+        buffer to unpack the contents into a dictionary, including (where
+        necessary) header and footer information. The definition and byte
+        buffer must already have been supplied before calling this method. The
+        class constructor automatically calls this method if both a definition
+        and byte buffer are supplied when instantiating a new packet, but you
+        can also call it by hand afterwards if necessary."""
+        
         # header (optional)
         if "header_args" in self.definition:
             header_packing_info = perilib_protocol_core.Protocol.calculate_packing_info(self.definition["header_args"])
@@ -244,6 +254,18 @@ class StreamPacket(perilib_protocol_core.Packet):
                 payload_packing_info)
 
     def build_buffer_from_structure(self):
+        """Generates a binary buffer based on a dictionary and definition.
+        
+        This method uses the already-stored packet definition and argument
+        dictionary to create a byte buffer representing the payload of a packet,
+        ready for transmission using a stream object. Note that many protocols
+        will need to add further content before and/or after the payload, using
+        headers and footers. Since this is optional and usually dependent on
+        protocol-specific metadata and/or payload content (such as CRC
+        calculation), the post-creation method is separated from this one to
+        simplify overriding only that part. Normally, you will not need to
+        override this particular method in a subclass."""
+
         # pack all arguments into binary buffer
         payload_packing_info = perilib_protocol_core.Protocol.calculate_packing_info(self.definition[self.TYPE_ARG_CONTEXT[self.type]])
         self.buffer = perilib_protocol_core.Protocol.pack_values(
@@ -256,7 +278,15 @@ class StreamPacket(perilib_protocol_core.Packet):
         self.prepare_buffer_after_building()
 
     def prepare_buffer_after_building(self):
-        return
+        """Perform final modifications to buffer after packing the payload.
+        
+        Protocols that require a header (e.g. type/length data) and/or footer
+        (e.g. CRC data) can override this method to prepend/append or otherwise
+        modify data in the packet buffer before the dictionary-to-byte-array
+        conversion process is considered to be complete. The stub implementation
+        in this base class simply does nothing."""
+        
+        pass
 
 class StreamParserGenerator:
     """Parser/generator class for stream-based protocols.
