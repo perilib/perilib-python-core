@@ -139,7 +139,7 @@ class StreamPacket(perilib_protocol_core.Packet):
     TYPE_ARG_CONTEXT = ["args"]
 
     def __init__(self, type=TYPE_GENERIC, name=None, definition=None, buffer=None, header=None, payload=None, footer=None, metadata=None, parser_generator=None):
-        """ Create a new stream packet instance.
+        """Creates a new stream packet instance.
         
         Supplying particular combinations of arguments to this constructor will
         result in a fully populated/configured packet instance. Most often, this
@@ -315,6 +315,34 @@ class StreamParserGenerator:
     STATUS_COMPLETE = 3
 
     def __init__(self, protocol_class=StreamProtocol, stream=None):
+        """Creates a new parser/generator instance.
+        
+        This object is one of the most important pieces of a Perilib construct,
+        since it coordinates a protocol definition with incoming and outgoing
+        binary data. It is possible to use this without an associated stream
+        object and simply feed data in manually (and generate packets for later
+        transmission by your application code), but it is simplest to provide
+        both the protocol definition and an associated stream.
+        
+        Simply feed data (single bytes or as a byte array) into the parse method
+        and the parser will maintain packet state information according to the
+        protocol structure. Whenever relevant events occur, the appropriate
+        callback (if assigned) will be triggered along with relevant data about
+        that event.
+        
+        This implementation is capable of using threads for various timeout
+        detection functions, but practically this tends to introduce a lot of
+        latency due to the overhead required for Python to start new threads
+        (dozens of milliseconds even on a fast multi-core machine). Therefore,
+        you should probably not enable threading unless you are feeling lazy AND
+        your data stream is not very busy AND you have a fast machine.
+        
+        Timeouts will still work quite well without threading, but you must
+        allow your application code to call the `process()` method (either
+        directly or via a stream, device, or manager higher up in the chain)
+        often in order to ensure timely reactions to incoming data and duration
+        checks."""
+        
         # these attributes may be updated by the application
         self.protocol_class = protocol_class
         self.stream = stream
@@ -344,6 +372,11 @@ class StreamParserGenerator:
         self.reset()
 
     def __str__(self):
+        """Generates the string representation of the device.
+        
+        This simple implementation includes the string representation of the
+        stream if one is attached, or else a generic description."""
+
         if self.stream is not None:
             return "par/gen on %s" % self.stream
         else:
