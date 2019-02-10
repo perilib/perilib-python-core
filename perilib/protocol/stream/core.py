@@ -383,6 +383,15 @@ class StreamParserGenerator:
             return "par/gen on unidentified stream"
 
     def start(self):
+        """Starts monitoring the RX queue for incoming data.
+        
+        If you have not previously configured this object to use threading,
+        calling this method will enable it. If you do not want to use threading
+        in your app, you should periodically call the `process()` method in a
+        loop instead (either directly on the parser/generator object, or in the
+        parent manager stream, device, or manager object higher up in the chain,
+        if one exists)."""
+
         # don't start if we're already running
         if not self.is_running:
             self._monitor_thread = threading.Thread(target=self._watch_rx_queue)
@@ -392,6 +401,14 @@ class StreamParserGenerator:
             self.is_running = True
 
     def stop(self):
+        """Stops monitoring the RX queue for new data.
+        
+        If the stream was previously monitoring the queue using threading, this
+        method will stop it. You can still perform manual queue watching by
+        calling the `process()` method from your application code regularly.
+        Alternatively, you can skip the queue entirely by passing in new data
+        using the `parse()` method instead of the `queue()` method."""
+
         # don't stop if we're not running
         if self.is_running:
             self._stop_thread_ident_list.append(self._running_thread_ident)
@@ -399,11 +416,42 @@ class StreamParserGenerator:
             self.is_running = False
 
     def reset(self):
+        """Resets the parser to an idle/empty state.
+        
+        After a packet is parsed successfully, or if a partial packet fails to
+        be parsed mid-stream for some reason (e.g. malformed data or bad CRC),
+        this method resets relevant buffer, state, and timeout properties to
+        values suitable to start a new packet.
+        
+        The parser method automatically calls this method at appropriate times
+        while processing incoming data, but you can also call it externally if
+        necessary (though it is usually not needed)."""
+        
         self.rx_buffer = b''
         self.parser_status = StreamParserGenerator.STATUS_IDLE
         self._incoming_packet_t0 = 0
         
     def queue(self, input_data):
+        """Add data to the RX queue for later processing.
+        
+        This method is most appropriate within the context of threading, where
+        a separate data stream RX monitoring thread needs to reliably pass data
+        to the parser to be processed in the parser's own thread (or possibly
+        the main application thread via the `process()` method). Incoming data
+        is added to the queue, which is either monitored by the parser's RX
+        queue monitoring thread (if enabled) or polled periodically when the
+        application calls the `process()` method.
+        
+        Any data queued with this method will not be processed until the
+        `process()` method is called, either manually from the app or
+        automatically by this object if threading is enabled. If you use this
+        method but to not detect any incoming packets (or parsing errors or
+        timeouts), ensure that you have the correct configuration.
+        
+        If you are not using threading, it is usually better to call the
+        `parse()` method directly for immediate parsing of new data, rather than
+        calling the `queue` method."""
+        
         if isinstance(input_data, (int,)):
             # given a single integer, so convert it to bytes first
             input_data = bytes([input_data])
@@ -415,6 +463,13 @@ class StreamParserGenerator:
         self.rx_deque.extend(input_data)
 
     def parse(self, input_data):
+        """Parse data according to the associated protocol definition.
+        
+        This method standardizes input data into a `bytes()` format, then passes
+        this data one byte at a time to the `parse_byte()` method. Although you
+        can use the `parse_byte()` method directly, this one allows objects of
+        various types as input and is therefore the more "friendly" option."""
+        
         if isinstance(input_data, (int,)):
             # given a single integer, so convert it to bytes first
             return self.parse_byte(input_data)
