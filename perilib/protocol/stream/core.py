@@ -463,7 +463,7 @@ class StreamParserGenerator:
         self.rx_deque.extend(input_data)
 
     def parse(self, input_data):
-        """Parse data according to the associated protocol definition.
+        """Parse one or more bytes of incoming data.
         
         This method standardizes input data into a `bytes()` format, then passes
         this data one byte at a time to the `parse_byte()` method. Although you
@@ -482,61 +482,83 @@ class StreamParserGenerator:
             self.parse_byte(input_byte_as_int)
             
     def parse_byte(self, input_byte_as_int):
-            if self.parser_status == StreamParserGenerator.STATUS_IDLE:
-                # not already in a packet, so run through start boundary test function
-                self.parser_status = self.protocol_class.test_packet_start(bytes([input_byte_as_int]), self)
+        """Parse a byte of data according to the associated protocol definition.
+        
+        This is the core of the parser side of the parser/generator object. It
+        processes each byte and maintains state tracking information required to
+        follow the flow of incoming packets, detect timeouts, trigger important
+        callbacks, and create packet instances from binary buffers.
+        
+        Depending on the current state of the parser, each new byte is tested
+        for the start and/or end condition (typically supplied by the protocol
+        definition class, though the start test case specifically might in some
+        cases be left unchanged so that any byte indicates a new packet). Once a
+        packet is successfully received and not tossed out as invalid by the
+        `test_packet_complete()` callback, the binary buffer is converted to a
+        full packet using the `get_packet_from_buffer()` method also in the
+        protocol definition class, and finally handed to the application as a
+        new packet for processing.
+        
+        Packets that are parsed according to given structural requirements but
+        then not identified in the protocol will generate an error callback, as
+        will packets that partially arrive but time out (if an incoming packet
+        timeout is defined)."""
+        
+        if self.parser_status == StreamParserGenerator.STATUS_IDLE:
+            # not already in a packet, so run through start boundary test function
+            self.parser_status = self.protocol_class.test_packet_start(bytes([input_byte_as_int]), self)
 
-                # if we just started and there's a defined timeout, start the timer
-                if self.parser_status != StreamParserGenerator.STATUS_IDLE and self.incoming_packet_timeout is not None:
-                    self._incoming_packet_t0 = time.time()
+            # if we just started and there's a defined timeout, start the timer
+            if self.parser_status != StreamParserGenerator.STATUS_IDLE and self.incoming_packet_timeout is not None:
+                self._incoming_packet_t0 = time.time()
 
-            # if we are (or may be) in a packet now, process
-            if self.parser_status != StreamParserGenerator.STATUS_IDLE:
-                # add byte to the buffer
-                self.rx_buffer += bytes([input_byte_as_int])
+        # if we are (or may be) in a packet now, process
+        if self.parser_status != StreamParserGenerator.STATUS_IDLE:
+            # add byte to the buffer
+            self.rx_buffer += bytes([input_byte_as_int])
 
-                # continue testing start conditions if we haven't fully started yet
-                if self.parser_status == StreamParserGenerator.STATUS_STARTING:
-                    self.parser_status = self.protocol_class.test_packet_start(self.rx_buffer, self)
+            # continue testing start conditions if we haven't fully started yet
+            if self.parser_status == StreamParserGenerator.STATUS_STARTING:
+                self.parser_status = self.protocol_class.test_packet_start(self.rx_buffer, self)
 
-                # test for completion conditions if we've fully started
-                if self.parser_status == StreamParserGenerator.STATUS_IN_PROGRESS:
-                    self.parser_status = self.protocol_class.test_packet_complete(self.rx_buffer, self)
+            # test for completion conditions if we've fully started
+            if self.parser_status == StreamParserGenerator.STATUS_IN_PROGRESS:
+                self.parser_status = self.protocol_class.test_packet_complete(self.rx_buffer, self)
 
-                # process the complete packet if we finished
-                if self.parser_status == StreamParserGenerator.STATUS_COMPLETE:
-                    # convert the buffer to a packet
-                    try:
-                        self.last_rx_packet = self.protocol_class.get_packet_from_buffer(self.rx_buffer, self)
+            # process the complete packet if we finished
+            if self.parser_status == StreamParserGenerator.STATUS_COMPLETE:
+                # convert the buffer to a packet
+                try:
+                    self.last_rx_packet = self.protocol_class.get_packet_from_buffer(self.rx_buffer, self)
 
-                        # reset the parser
-                        self.reset()
-                        
-                        if self.last_rx_packet is not None:
-                            release_wait_lock = False
-                            if self.last_rx_packet.name == self.response_pending:
-                                # cancel timer and clear pending info
-                                self._response_packet_t0 = 0
-                                release_wait_lock = True
+                    # reset the parser
+                    self.reset()
+                    
+                    if self.last_rx_packet is not None:
+                        release_wait_lock = False
+                        if self.last_rx_packet.name == self.response_pending:
+                            # cancel timer and clear pending info
+                            self._response_packet_t0 = 0
+                            release_wait_lock = True
 
-                            if self.on_rx_packet:
-                                # pass packet to receive callback
-                                self.on_rx_packet(self.last_rx_packet)
-                                
-                            # fire the wait event if necessary
-                            if release_wait_lock:
-                                self.response_pending = None
-                                self._wait_timed_out = False
-                                self._wait_packet_event.set()
-                    except perilib_core.PerilibProtocolException as e:
-                        if self.on_rx_error is not None:
-                            self.on_rx_error(e, self.rx_buffer, self)
+                        if self.on_rx_packet:
+                            # pass packet to receive callback
+                            self.on_rx_packet(self.last_rx_packet)
+                            
+                        # fire the wait event if necessary
+                        if release_wait_lock:
+                            self.response_pending = None
+                            self._wait_timed_out = False
+                            self._wait_packet_event.set()
+                except perilib_core.PerilibProtocolException as e:
+                    if self.on_rx_error is not None:
+                        self.on_rx_error(e, self.rx_buffer, self)
 
-                        # reset the parser
-                        self.reset()
-            else:
-                # still idle after parsing a byte, probably malformed/junk data
-                self._incoming_packet_t0 = 0
+                    # reset the parser
+                    self.reset()
+        else:
+            # still idle after parsing a byte, probably malformed/junk data
+            self._incoming_packet_t0 = 0
 
     def generate(self, _packet_name, **kwargs):
         # args are prefixed with '_' to avoid unlikely collision with kwargs key
