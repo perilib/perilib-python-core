@@ -183,6 +183,13 @@ class SerialStream(core.Stream):
         self._stop_thread_ident_list.remove(threading.get_ident())
 
     def _cleanup_port_closure(self):
+        """Handle a closed port cleanly.
+        
+        A serial port may close due to device removal (unexpected) or due to
+        stream closure (expected). In either case, the internal port closure
+        status value is updated here, and in the case of an unexpected closure,
+        the device disconnection callback is triggered."""
+        
         if self.on_close_stream is not None:
             # trigger port closure callback
             self.on_close_stream(self)
