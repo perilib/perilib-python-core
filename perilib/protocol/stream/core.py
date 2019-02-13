@@ -561,10 +561,27 @@ class StreamParserGenerator:
             self._incoming_packet_t0 = 0
 
     def generate(self, _packet_name, **kwargs):
+        """Create a packet from a name and argument dictionary.
+        
+        This method is primarily useful for creating outgoing packets just prior
+        to transmission. This method accepts a name and optional argument
+        dictionary and passes them to the protocol class (with a copy of the
+        calling parser/generator object) to be assembled into a full packet
+        instance, including the associated binary buffer ready to send to a
+        stream."""
+        
         # args are prefixed with '_' to avoid unlikely collision with kwargs key
         return self.protocol_class.get_packet_from_name_and_args(_packet_name, self, **kwargs)
 
     def send_packet(self, _packet_name, **kwargs):
+        """Send a packet out via an associated stream.
+        
+        This method first creates a packet based on a packet name and argument
+        dictionary, then sends it out via the attached stream instance. If a
+        response packet is required according to the protocol definition, then a
+        new incoming response packet timeout detection process is started just
+        after transmission."""
+        
         # build the packet
         packet = self.generate(_packet_name=_packet_name, **kwargs)
         
