@@ -600,6 +600,15 @@ class StreamParserGenerator:
         return result
         
     def wait_packet(self, _packet_name=None):
+        """Block until a specific packet arrives, or times out.
+        
+        For use cases where specific command-response cycles are required, or if
+        you simply want to wait for a specific packet to arrive such as a
+        particular event, this method does that by blocking until that happens.
+        If threading is not enabled for this stream, the internal `process()`
+        method is called inside the busy-wait loop in order to allow processing
+        of incoming data and timeout detection."""
+        
         # wait until we're not busy
         while self.response_pending is not None:
             if self.stream is not None and not self.stream.use_threading:
@@ -628,6 +637,12 @@ class StreamParserGenerator:
         return self.last_rx_packet if not self._wait_timed_out else None
         
     def send_and_wait(self, _packet_name, **kwargs):
+        """Send a packet and wait for a response.
+        
+        This is a convenience method that combines the `send_packet()` and
+        `wait_packet()` methods into a single call. Waiting only occurs if the
+        packet sending process does not result in an error."""
+        
         result = self.send_packet(_packet_name, **kwargs)
         if result != False:
             result = self.wait_packet()
@@ -654,11 +669,27 @@ class StreamParserGenerator:
             self._response_packet_timed_out();
         
     def _on_tx_packet(self, packet):
+        """Internal callback for when a packet is transmitted.
+        
+        This basic implementation simply passes the packet to the application
+        for observation (if the callback is defined). Subclasses may choose to
+        override this to manipulate the packet in some way first, if desired."""
+        
         if self.on_tx_packet is not None:
             # trigger application callback
             self.on_tx_packet(packet)
 
     def _incoming_packet_timed_out(self):
+        """Internal callback for when an incoming packet times out.
+        
+        If an incoming packet times out, the parser is reset to a fresh state
+        so that it is ready to begin watching for a new packet.
+        
+        Note that this only occurs if a packet is started but then does not
+        arrive completely within a (non-zero) time limit specified in the
+        protocol definition. This is a separate timeout value from the response
+        timeout that begins after transmitting a packet."""
+        
         if self.on_incoming_packet_timeout is not None:
             # pass partial packet to timeout callback
             self.on_incoming_packet_timeout(self.rx_buffer, self)
@@ -667,6 +698,14 @@ class StreamParserGenerator:
         self.reset()
 
     def _response_packet_timed_out(self):
+        """Internal callback for when a pending response packet times out.
+        
+        If a transmitted packet requires a response, this callback will be
+        triggered if that response does not arrive within the (non-zero) time
+        limit specified in the protocol definition. The packet must arrive
+        completely (not just begin) within that time limit in order to avoid
+        triggering the timeout condition."""
+        
         if self.on_response_packet_timeout is not None:
             # pass partial packet to timeout callback
             self.on_response_packet_timeout(self.response_pending, self)
@@ -680,6 +719,20 @@ class StreamParserGenerator:
         self._wait_packet_event.set()
         
     def _watch_rx_queue(self):
+        """Monitor the RX queue for new data to process.
+        
+        If threading is enabled, this is the thread target method. It will run
+        as long as the parser/generator object is not stopped (or the port that
+        is handling the stream doesn't disappear, e.g. due to USB device
+        removal).
+        
+        If threading is not enabled, the application must call the `process()`
+        method frequently in order to handle queue monitoring and timeout
+        detection in a timely fashion. If timeouts are not used for a particular
+        protocol, then you could theoretically skip processing entirely and
+        instead just pass stream data directly in via the `parse()` method
+        instead of the `queue()` method."""
+        
         while threading.get_ident() not in self._stop_thread_ident_list:
             self.process()
 
