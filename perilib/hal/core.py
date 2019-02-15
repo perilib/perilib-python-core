@@ -17,6 +17,13 @@ class Device:
     def __init__(self, id, port=None, stream=None):
         """Initializes a device instance.
         
+        :param id: An identifier given to this device, such as the port number
+            it is attached to or the model number (if known ahead of time)
+        :type id: str
+        
+        :param port: The port object handling the connection, if one exists
+            (often a PySerial ListPortInfo object for serial devices)
+            
         The ID of the device is required, while the port and stream may be
         omitted."""
         
@@ -27,6 +34,9 @@ class Device:
     def __str__(self):
         """Generates the string representation of the device.
         
+        :returns: String representation of the device
+        :rtype: str
+        
         This basic implementation simply uses the string representation of the
         assigned ID attribute."""
         
@@ -35,11 +45,18 @@ class Device:
     def process(self, mode=PROCESS_BOTH, force=False):
         """Handle any pending events or data waiting to be processed.
         
-        If the stream is being used in a non-threading arrangement, this method
+        :param mode: Processing mode defining whether to run for this object,
+            sub-objects lower in the management hierarchy (stream objects in
+            this case, or both)
+        :type mode: int
+        
+        :param force: Whether to force processing to run regardless of elapsed
+            time since last time (if applicable)
+        :type force: bool
+            
+        If the device is being used in a non-threading arrangement, this method
         should periodically be executed to manually step through all necessary
-        checks and trigger any relevant data processing and callbacks. Calling
-        this method will automatically call it on an associated parser/generator
-        object.
+        checks and trigger any relevant data processing and callbacks.
         
         This is the same method that would be called internally in an infinite
         loop by the thread target, if threading is used."""
