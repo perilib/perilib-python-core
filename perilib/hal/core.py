@@ -47,7 +47,7 @@ class Device:
         
         :param mode: Processing mode defining whether to run for this object,
             sub-objects lower in the management hierarchy (stream objects in
-            this case, or both)
+            this case), or both
         :type mode: int
         
         :param force: Whether to force processing to run regardless of elapsed
@@ -88,6 +88,13 @@ class Stream:
     def __init__(self, device=None, parser_generator=None):
         """Initializes a stream instance.
         
+        :param device: The device which manages this stream, if one exists
+        :type device: Device
+        
+        :param parser_generator: The parser/generator object which this stream
+            sends and receives data through, if one exists
+        :type parser_generator: ParserGenerator
+
         A device (which has a stream) and parser/generator (which a stream has)
         may be supplied at instantiation, or later if required. A stream does
         not strictly need either of these things, but in most cases you will be
@@ -115,6 +122,9 @@ class Stream:
     def __str__(self):
         """Generates the string representation of the stream.
         
+        :returns: String representation of the device
+        :rtype: str
+
         This basic implementation simply uses the string representation of the
         assigned device. If no device is supplied, this will of course return
         the string "None" instead."""
@@ -152,6 +162,9 @@ class Stream:
     def write(self, data):
         """Sends outgoing data to the stream.
         
+        :param data: The data buffer to be sent out through the stream
+        :type data: bytes
+
         For example, a stream using PySerial as the underlying driver would use
         the `write()` method on the serial port object whenever this method is
         called.
@@ -198,6 +211,15 @@ class Stream:
     def process(self, mode=PROCESS_BOTH, force=False):
         """Handle any pending events or data waiting to be processed.
         
+        :param mode: Processing mode defining whether to run for this object,
+            sub-objects lower in the management hierarchy (parser/generator
+            objects in this case), or both
+        :type mode: int
+        
+        :param force: Whether to force processing to run regardless of elapsed
+            time since last time (if applicable)
+        :type force: bool
+            
         If the stream is being used in a non-threading arrangement, this method
         should periodically be executed to manually step through all necessary
         checks and trigger any relevant data processing and callbacks. Calling
@@ -242,6 +264,9 @@ class Stream:
     def _on_rx_data(self, data):
         """Handles incoming data.
         
+        :param data: The data buffer that has just been received
+        :type data: bytes
+
         When the data watcher method receives any data (one or more bytes), that
         chunk is passed to this method for processing. This simple default
         implementation merely passes it directly to the application-level data
@@ -311,6 +336,20 @@ class Manager:
         self._last_process_time = 0
 
     def configure_threading(self, flags):
+        """Configure threading settings for this manager instance.
+        
+        :param flags: Processing mode defining whether to run for this object,
+            sub-objects lower in the management hierarchy (parser/generator
+            objects in this case), or both
+        :type flags: int
+        
+        This method can set the threading use for the manager itself as well as
+        for the stream(s) and parser/generator(s) lower in the hierarchy. The
+        default is that streaming is not used. If threading is enabled here for
+        lower objects, then it will be enabled as directed when the new objects
+        are created (upon detection and opening of each stream).
+        """
+        
         self.threading_flags = flags
         self.use_threading = True if (self.threading_flags & Manager.MANAGER_THREADING) != 0 else False
     
@@ -355,6 +394,14 @@ class Manager:
     def process(self, mode=PROCESS_BOTH, force=False):
         """Handle any pending events or data waiting to be processed.
         
+        :param mode: Processing mode defining whether to run for this object,
+            sub-objects lower in the management hierarchy, or both
+        :type mode: int
+        
+        :param force: Whether to force processing to run regardless of elapsed
+            time since last time (if applicable)
+        :type force: bool
+            
         If the manager is being used in a non-threading arrangement, this method
         should periodically be executed to manually step through all necessary
         checks and trigger any relevant data processing and callbacks. Calling
@@ -450,6 +497,9 @@ class Manager:
     def _on_connect_device(self, device):
         """Handles device connections.
         
+        :param device: The device that has just been connected
+        :type device: Device
+
         When the connection watcher method detects a new device, that device is
         passed to this method for processing. This simple default implementation
         merely passes it directly to the application-level connection callback,
@@ -471,6 +521,9 @@ class Manager:
     def _on_disconnect_device(self, device):
         """Handles device disconnections.
         
+        :param device: The device that has just been connected
+        :type device: Device
+
         When the connection watcher method detects a removed device, that device
         is passed to this method for processing. This simple default
         implementation merely passes it directly to the application-level
