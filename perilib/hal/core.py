@@ -24,6 +24,10 @@ class Device:
         :param port: The port object handling the connection, if one exists
             (often a PySerial ListPortInfo object for serial devices)
             
+        :param stream: The stream object which this device handles, if one
+            exists
+        :type stream: Stream
+            
         The ID of the device is required, while the port and stream may be
         omitted."""
         
@@ -162,7 +166,7 @@ class Stream:
     def write(self, data):
         """Sends outgoing data to the stream.
         
-        :param data: The data buffer to be sent out through the stream
+        :param data: The data buffer to be sent out to the stream
         :type data: bytes
 
         For example, a stream using PySerial as the underlying driver would use
@@ -521,7 +525,7 @@ class Manager:
     def _on_disconnect_device(self, device):
         """Handles device disconnections.
         
-        :param device: The device that has just been connected
+        :param device: The device that has just been disconnected
         :type device: Device
 
         When the connection watcher method detects a removed device, that device

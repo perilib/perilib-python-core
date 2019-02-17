@@ -16,6 +16,17 @@ class SerialDevice(core.Device):
     def __init__(self, id, port, stream=None):
         """Initializes a serial device instance.
         
+        :param id: An identifier given to this device, such as the port number
+            it is attached to or the model number (if known ahead of time)
+        :type id: str
+        
+        :param port: The port object handling the connection, (either a PySerial
+            ListPortInfo object or PySerial port object)
+            
+        :param stream: The stream object which this device handles, if one
+            exists
+        :type stream: Stream
+
         The ID and port of the device are required, while the stream may be
         omitted. The port should be either an actual serial port object from
         the PySerial library (from which a ListPortInfo instance will be
@@ -103,6 +114,9 @@ class SerialStream(core.Stream):
     def write(self, data):
         """Writes data to the serial stream.
         
+        :param data: The data buffer to be sent out to the stream
+        :type data: bytes
+
         This transmits data to the serial stream using the standard serial
         `write` method. The data argument should be a `bytes()` object, or
         something that can be transparently converted to a `bytes()` object."""
@@ -115,6 +129,15 @@ class SerialStream(core.Stream):
     def process(self, mode=core.Stream.PROCESS_BOTH, force=False):
         """Handle any pending events or data waiting to be processed.
         
+        :param mode: Processing mode defining whether to run for this object,
+            sub-objects lower in the management hierarchy (parser/generator
+            objects in this case), or both
+        :type mode: int
+        
+        :param force: Whether to force processing to run regardless of elapsed
+            time since last time (if applicable)
+        :type force: bool
+
         If the stream is being used in a non-threading arrangement, this method
         should periodically be executed to manually step through all necessary
         checks and trigger any relevant data processing and callbacks. Calling
@@ -238,6 +261,22 @@ class SerialManager(core.Manager):
             protocol_class=perilib_protocol.stream.StreamProtocol):
         """Initializes a serial manager instance.
         
+        :param device_class: The class to use when instantiating new device
+            objects upon connection
+        :type device_class: SerialDevice
+
+        :param stream_class: The class to use when instantiating new stream
+            objects upon connection
+        :type stream_class: SerialStream
+
+        :param parser_generator_class: The class to use when instantiating new
+            parser/generator objects associated with new streams
+        :type parser_generator_class: StreamParserGenerator
+
+        :param protocol_class: The class to use for assigning a protocol to new
+            parser/generator objects associated with new streams
+        :type protocol_class: StreamProtocol
+
         The manager coordinates all necessary connections between a device,
         stream, and parser/generator. In the Python implementation, it also
         handles monitoring device connections and disconnections, especially in
@@ -309,6 +348,9 @@ class SerialManager(core.Manager):
     def _on_connect_device(self, device):
         """Handles serial device connections.
         
+        :param device: The device that has just been connected
+        :type device: SerialDevice
+
         When the connection watcher method detects a new device, that device is
         passed to this method for processing. This implementation performs auto
         opening if configured (either for the first device or for every device),
@@ -380,6 +422,9 @@ class SerialManager(core.Manager):
     def _on_disconnect_device(self, device):
         """Handles device disconnections.
         
+        :param device: The device that has just been disconnected
+        :type device: SerialDevice
+
         When the connection watcher method detects a removed device, that device
         is passed to this method for processing. This implementation handles
         automatic closing and removal of a data stream (if one is attached), and
@@ -408,6 +453,12 @@ class SerialManager(core.Manager):
     def _on_rx_data(self, data, stream):
         """Automatically handles incoming data from a stream.
         
+        :param data: The data buffer received from the stream
+        :type data: bytes
+
+        :param stream: The stream from which the data was received
+        :type stream: SerialStream
+
         When new data arrives into a serial stream attached to a device under
         the purview of this manager, this method automatically passes it to the
         relevant parser/generator object. The application itself could do this,
