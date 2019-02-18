@@ -448,7 +448,11 @@ class Manager:
                     self._on_disconnect_device(self.devices[device_id])
 
                     # remove this port from the list
-                    del self.devices[device_id]
+                    try:
+                        del self.devices[device_id]
+                    except KeyError as e:
+                        # already removed, possibly from another thread
+                        pass
                     
         # allow known devices to process immediately
         if mode in [Manager.PROCESS_BOTH, Manager.PROCESS_SUBS]:

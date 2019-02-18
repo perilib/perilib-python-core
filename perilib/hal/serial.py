@@ -124,7 +124,13 @@ class SerialStream(core.Stream):
         if self.on_tx_data is not None:
             # trigger application callback
             self.on_tx_data(data, self)
-        return self.device.port.write(data)
+            
+        try:
+            result = self.device.port.write(data)
+        except serial.serialutil.SerialException as e:
+            result = False
+            
+        return result
 
     def process(self, mode=core.Stream.PROCESS_BOTH, force=False):
         """Handle any pending events or data waiting to be processed.
