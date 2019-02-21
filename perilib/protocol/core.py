@@ -27,7 +27,12 @@ class Protocol():
     @classmethod
     def calculate_packing_info(cls, fields):
         """Build a struct.pack format string and calculate expected data length
-        based on field definitions."""
+        based on field definitions.
+        
+        :param fields: A list containing field definitions describing the
+                packing structure
+        :type fields: list
+        """
         
         pack_format = "<"
         expected_length = 0
@@ -49,7 +54,15 @@ class Protocol():
     @classmethod
     def calculate_field_offset(cls, fields, field_name):
         """Determine the byte offset for a specific field within a packed byte
-        buffer."""
+        buffer.
+        
+        :param fields: A list containing field definitions describing the
+                packing structure
+        :type fields: list
+        
+        :param field_name: Specific field for which to calculate the offset
+        :type field_name: str
+        """
         
         offset = 0
         for field in fields:
@@ -72,6 +85,18 @@ class Protocol():
     def pack_values(cls, values, fields, packing_info=None):
         """Pack a dictionary into a binary buffer based on field definitions.
         
+        :param values: A list containing values to be packed according to the
+                supplied field definition list
+        :type fields: list
+
+        :param fields: A list containing field definitions describing the
+                packing structure
+        :type fields: list
+
+        :param packing_info: A dictionary containing the packing format string
+                and expected length in bytes for the corresponding buffer
+        :type packing_info: dict
+
         If no packing info is provided as an argument, it will be obtained as
         part of the process. It is allowed to be sent as an argument because
         some external methods require access to it for pre-processing, and so
@@ -99,6 +124,18 @@ class Protocol():
     def unpack_values(cls, buffer, fields, packing_info=None):
         """Unpack a binary buffer into a dictionary based on field definitions.
         
+        :param buffer: A byte buffer to be unpacked into a dictionary based on
+                the supplied field definition list
+        :type buffer: bytes
+
+        :param fields: A list containing field definitions describing the
+                packing structure
+        :type fields: list
+
+        :param packing_info: A dictionary containing the packing format string
+                and expected length in bytes for the corresponding buffer
+        :type packing_info: dict
+
         If no packing info is provided as an argument, it will be obtained as
         part of the process. It is allowed to be sent as an argument because
         some external methods require access to it for pre-processing, and so

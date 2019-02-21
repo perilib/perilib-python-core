@@ -24,6 +24,13 @@ class StreamProtocol(perilib_protocol_core.Protocol):
     def test_packet_start(cls, buffer, is_tx=False):
         """Test whether a packet has started.
         
+        :param buffer: Current data buffer to be tested
+        :type buffer: bytes
+
+        :param is_tx: Whether the buffer is incoming (false) or outgoing (true)
+                data
+        :type is_tx: boolean
+
         Since many protocols have a unique mechanism for determining the start
         of a new frame (e.g. 0x55 byte), this method may be overridden to use a
         more complex test based on the contents of the `buffer` argument (which
@@ -45,6 +52,13 @@ class StreamProtocol(perilib_protocol_core.Protocol):
     def test_packet_complete(cls, buffer, is_tx=False):
         """Test whether a packet has finished.
         
+        :param buffer: Current data buffer to be tested
+        :type buffer: bytes
+
+        :param is_tx: Whether the buffer is incoming (false) or outgoing (true)
+                data
+        :type is_tx: boolean
+
         Almost every protocol has a way to determine when an incoming packet is
         complete, especially if each packet may be a different length. Often,
         packets end with a CRC block or other type of validation data that must
@@ -73,6 +87,17 @@ class StreamProtocol(perilib_protocol_core.Protocol):
     def get_packet_from_buffer(cls, buffer, parser_generator=None, is_tx=False):
         """Generates a packet object from a binary buffer.
         
+        :param buffer: Data buffer from which to create a packet object
+        :type buffer: bytes
+
+        :param parser_generator: Parser/generator object to associate with the
+                newly created packet, if any
+        :type parser_generator: StreamParserGenerator
+
+        :param is_tx: Whether the buffer is incoming (false) or outgoing (true)
+                data
+        :type is_tx: boolean
+
         Internally, this method is called once an incoming packet is received
         without error. This method accepts the buffer, parser/generator object,
         and packet direction (RX or TX) and must assembled a fully populated
@@ -103,6 +128,16 @@ class StreamProtocol(perilib_protocol_core.Protocol):
     def get_packet_from_name_and_args(cls, _packet_name, _parser_generator=None, **kwargs):
         """Generates a packet object from a name and argument dictionary.
         
+        :param _packet_name: Name of the packet to search for
+        :type _packet_name: str
+
+        :param _parser_generator: Parser/generator object to associate with the
+                newly created packet, if any
+        :type _parser_generator: StreamParserGenerator
+
+        :param kwargs: Dictionray of arguments to use for assembling the packet
+        :type kwargs: dict
+
         Internally, this method is called in order to create a packet and fill
         the binary buffer prior to transmission, typically as a result of a call
         to the `send_packet()` or `send_and_wait()` method. The `kwargs`

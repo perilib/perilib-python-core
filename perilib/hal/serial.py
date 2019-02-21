@@ -20,10 +20,10 @@ class SerialDevice(core.Device):
             it is attached to or the model number (if known ahead of time)
         :type id: str
         
-        :param port: The port object handling the connection, (either a PySerial
+        :param port: Port object handling the connection, (either a PySerial
             ListPortInfo object or PySerial port object)
             
-        :param stream: The stream object which this device handles, if one
+        :param stream: Stream object which this device handles, if one
             exists
         :type stream: Stream
 
@@ -114,7 +114,7 @@ class SerialStream(core.Stream):
     def write(self, data):
         """Writes data to the serial stream.
         
-        :param data: The data buffer to be sent out to the stream
+        :param data: Data buffer to be sent out to the stream
         :type data: bytes
 
         This transmits data to the serial stream using the standard serial
@@ -267,19 +267,19 @@ class SerialManager(core.Manager):
             protocol_class=perilib_protocol.stream.StreamProtocol):
         """Initializes a serial manager instance.
         
-        :param device_class: The class to use when instantiating new device
-            objects upon connection
+        :param device_class: Class to use when instantiating new device objects
+            upon connection
         :type device_class: SerialDevice
 
-        :param stream_class: The class to use when instantiating new stream
-            objects upon connection
+        :param stream_class: Class to use when instantiating new stream objects
+            upon connection
         :type stream_class: SerialStream
 
-        :param parser_generator_class: The class to use when instantiating new
+        :param parser_generator_class: Class to use when instantiating new
             parser/generator objects associated with new streams
         :type parser_generator_class: StreamParserGenerator
 
-        :param protocol_class: The class to use for assigning a protocol to new
+        :param protocol_class: Class to use for assigning a protocol to new
             parser/generator objects associated with new streams
         :type protocol_class: StreamProtocol
 
@@ -354,7 +354,7 @@ class SerialManager(core.Manager):
     def _on_connect_device(self, device):
         """Handles serial device connections.
         
-        :param device: The device that has just been connected
+        :param device: Device that has just been connected
         :type device: SerialDevice
 
         When the connection watcher method detects a new device, that device is
@@ -428,7 +428,7 @@ class SerialManager(core.Manager):
     def _on_disconnect_device(self, device):
         """Handles device disconnections.
         
-        :param device: The device that has just been disconnected
+        :param device: Device that has just been disconnected
         :type device: SerialDevice
 
         When the connection watcher method detects a removed device, that device
@@ -459,10 +459,10 @@ class SerialManager(core.Manager):
     def _on_rx_data(self, data, stream):
         """Automatically handles incoming data from a stream.
         
-        :param data: The data buffer received from the stream
+        :param data: Data buffer received from the stream
         :type data: bytes
 
-        :param stream: The stream from which the data was received
+        :param stream: Stream from which the data was received
         :type stream: SerialStream
 
         When new data arrives into a serial stream attached to a device under

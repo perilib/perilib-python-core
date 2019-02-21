@@ -21,10 +21,10 @@ class Device:
             it is attached to or the model number (if known ahead of time)
         :type id: str
         
-        :param port: The port object handling the connection, if one exists
+        :param port: Port object handling the connection, if one exists
             (often a PySerial ListPortInfo object for serial devices)
             
-        :param stream: The stream object which this device handles, if one
+        :param stream: Stream object which this device handles, if one
             exists
         :type stream: Stream
             
@@ -92,10 +92,10 @@ class Stream:
     def __init__(self, device=None, parser_generator=None):
         """Initializes a stream instance.
         
-        :param device: The device which manages this stream, if one exists
+        :param device: Device which manages this stream, if one exists
         :type device: Device
         
-        :param parser_generator: The parser/generator object which this stream
+        :param parser_generator: Parser/generator object which this stream
             sends and receives data through, if one exists
         :type parser_generator: ParserGenerator
 
@@ -166,7 +166,7 @@ class Stream:
     def write(self, data):
         """Sends outgoing data to the stream.
         
-        :param data: The data buffer to be sent out to the stream
+        :param data: Data buffer to be sent out to the stream
         :type data: bytes
 
         For example, a stream using PySerial as the underlying driver would use
@@ -268,7 +268,7 @@ class Stream:
     def _on_rx_data(self, data):
         """Handles incoming data.
         
-        :param data: The data buffer that has just been received
+        :param data: Data buffer that has just been received
         :type data: bytes
 
         When the data watcher method receives any data (one or more bytes), that
@@ -505,7 +505,7 @@ class Manager:
     def _on_connect_device(self, device):
         """Handles device connections.
         
-        :param device: The device that has just been connected
+        :param device: Device that has just been connected
         :type device: Device
 
         When the connection watcher method detects a new device, that device is
@@ -529,7 +529,7 @@ class Manager:
     def _on_disconnect_device(self, device):
         """Handles device disconnections.
         
-        :param device: The device that has just been disconnected
+        :param device: Device that has just been disconnected
         :type device: Device
 
         When the connection watcher method detects a removed device, that device
