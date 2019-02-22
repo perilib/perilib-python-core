@@ -176,6 +176,34 @@ class StreamPacket(perilib_protocol_core.Packet):
     def __init__(self, type=TYPE_GENERIC, name=None, definition=None, buffer=None, header=None, payload=None, footer=None, metadata=None, parser_generator=None):
         """Creates a new stream packet instance.
         
+        :param type: Packet type
+        :type type: int
+
+        :param name: Name of the packet
+        :type name: str
+
+        :param definition: Structure of this packet from the protocol definition
+        :type definition: dict
+
+        :param buffer: Binary buffer from which to create the packet
+        :type buffer: bytes
+
+        :param header: Header arguments for this packet, if any
+        :type header: dict
+
+        :param payload: Payload arguments for this packet, if any
+        :type payload: dict
+
+        :param footer: Footer arguments for this packet, if any
+        :type footer: dict
+
+        :param metadata: Custom metadata for this packet, if any
+        :type metadata: dict
+
+        :param parser_generator: Parser/generator object to associate with the
+                newly created packet, if any
+        :type parser_generator: StreamParserGenerator
+
         Supplying particular combinations of arguments to this constructor will
         result in a fully populated/configured packet instance. Most often, this
         is used to create a new packet object either from a binary buffer (which
@@ -214,6 +242,9 @@ class StreamPacket(perilib_protocol_core.Packet):
     def __getitem__(self, arg):
         """Convenience accessor for payload arguments.
         
+        :param arg: Name of the payload argument to get
+        :type arg: str
+
         With this method, you can directly read payload entries without
         explicitly using the `.payload` attribute, but rather using the packet
         object itself as a dictionary."""
