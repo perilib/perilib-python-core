@@ -383,6 +383,13 @@ class StreamParserGenerator:
     def __init__(self, protocol_class=StreamProtocol, stream=None):
         """Creates a new parser/generator instance.
         
+        :param protocol_class: Protocol definition attached to this
+                parser/generator
+        :type protocol_class: StreamProtocol
+
+        :param stream: Stream attached to this parser/generator, if any
+        :type stream: Stream
+
         This object is one of the most important pieces of a Perilib construct,
         since it coordinates a protocol definition with incoming and outgoing
         binary data. It is possible to use this without an associated stream
@@ -500,6 +507,9 @@ class StreamParserGenerator:
     def queue(self, input_data):
         """Add data to the RX queue for later processing.
         
+        :param input_data: Byte buffer to append to the parse queue
+        :type input_data: bytes
+
         This method is most appropriate within the context of threading, where
         a separate data stream RX monitoring thread needs to reliably pass data
         to the parser to be processed in the parser's own thread (or possibly
@@ -531,6 +541,9 @@ class StreamParserGenerator:
     def parse(self, input_data):
         """Parse one or more bytes of incoming data.
         
+        :param input_data: Byte buffer to parse immediately
+        :type input_data: bytes
+
         This method standardizes input data into a `bytes()` format, then passes
         this data one byte at a time to the `parse_byte()` method. Although you
         can use the `parse_byte()` method directly, this one allows objects of
@@ -550,6 +563,9 @@ class StreamParserGenerator:
     def parse_byte(self, input_byte_as_int):
         """Parse a byte of data according to the associated protocol definition.
         
+        :param input_byte_as_int: Single byte to parse
+        :type input_byte_as_int: int
+
         This is the core of the parser side of the parser/generator object. It
         processes each byte and maintains state tracking information required to
         follow the flow of incoming packets, detect timeouts, trigger important
@@ -629,6 +645,9 @@ class StreamParserGenerator:
     def generate(self, _packet_name, **kwargs):
         """Create a packet from a name and argument dictionary.
         
+        :param _packet_name: Name of packet to create
+        :type _packet_name: str
+
         This method is primarily useful for creating outgoing packets just prior
         to transmission. This method accepts a name and optional argument
         dictionary and passes them to the protocol class (with a copy of the
@@ -642,6 +661,9 @@ class StreamParserGenerator:
     def send_packet(self, _packet_name, **kwargs):
         """Send a packet out via an associated stream.
         
+        :param _packet_name: Name of packet to create and transmit
+        :type _packet_name: str
+
         This method first creates a packet based on a packet name and argument
         dictionary, then sends it out via the attached stream instance. If a
         response packet is required according to the protocol definition, then a
@@ -667,6 +689,14 @@ class StreamParserGenerator:
         
     def wait_packet(self, _packet_name=None):
         """Block until a specific packet arrives, or times out.
+        
+        :param _packet_name: Name of packet to wait for (if required)
+        :type _packet_name: str
+
+        If a packet name is not supplied, then this method will wait until any
+        protocol-defined response is received, based on the last transmitted
+        command packet. In this case, if there is no pending response according
+        to the protocol definition, then this method will return immediately.
         
         For use cases where specific command-response cycles are required, or if
         you simply want to wait for a specific packet to arrive such as a
@@ -705,6 +735,9 @@ class StreamParserGenerator:
     def send_and_wait(self, _packet_name, **kwargs):
         """Send a packet and wait for a response.
         
+        :param _packet_name: Name of packet to wait for (if required)
+        :type _packet_name: str
+
         This is a convenience method that combines the `send_packet()` and
         `wait_packet()` methods into a single call. Waiting only occurs if the
         packet sending process does not result in an error."""
@@ -717,6 +750,15 @@ class StreamParserGenerator:
     def process(self, mode=PROCESS_BOTH, force=False):
         """Handle any pending events or data waiting to be processed.
         
+        :param mode: Processing mode defining whether to run for this object,
+            sub-objects lower in the management hierarchy (nothing in this
+            case), or both
+        :type mode: int
+        
+        :param force: Whether to force processing to run regardless of elapsed
+            time since last time (if applicable)
+        :type force: bool
+            
         If the parser/generator is being used in a non-threading arrangement,
         this method should periodically be executed to manually step through all
         necessary checks and trigger any relevant data processing and callbacks.
@@ -737,6 +779,9 @@ class StreamParserGenerator:
     def _on_tx_packet(self, packet):
         """Internal callback for when a packet is transmitted.
         
+        :param packet: Packet that is about to be transmitted
+        :type packet: Packet
+
         This basic implementation simply passes the packet to the application
         for observation (if the callback is defined). Subclasses may choose to
         override this to manipulate the packet in some way first, if desired."""
