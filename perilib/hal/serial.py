@@ -53,6 +53,9 @@ class SerialDevice(core.Device):
     def __str__(self):
         """Generates the string representation of the serial device.
         
+        :returns: String representation of the device
+        :rtype: str
+
         This basic implementation simply uses the string representation of the
         assigned port info object."""
         
@@ -67,6 +70,12 @@ class SerialStream(core.Stream):
     the most complex parent application logic."""
 
     def __str__(self):
+        """Generates the string representation of the serial stream.
+        
+        :returns: String representation of the stream
+        :rtype: str
+        """
+
         return self.device.id
 
     def open(self):
@@ -116,6 +125,9 @@ class SerialStream(core.Stream):
         
         :param data: Data buffer to be sent out to the stream
         :type data: bytes
+
+        :returns: Number of bytes written to the stream
+        :rtype: int
 
         This transmits data to the serial stream using the standard serial
         `write` method. The data argument should be a `bytes()` object, or
@@ -323,7 +335,10 @@ class SerialManager(core.Manager):
     def _get_connected_devices(self):
         """Gets a list of all currently connected serial devices.
         
-        The list of detected devices is merged with previously known devices
+        :returns: Dictionary of connected devices (keys are device names)
+        :rtype: dict
+
+        The set of detected devices is merged with previously known devices
         before being returned, so that devices that may have been modified in
         some way (e.g. stream attached and/or opened) will retain their state.
         Previously unknown devices are instantiated immediately, while known

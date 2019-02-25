@@ -462,6 +462,9 @@ class Manager:
     def _get_connected_devices(self):
         """Gets a list of all currently connected devices.
         
+        :returns: Dictionary of connected devices (keys are device names)
+        :rtype: dict
+
         For example, a stream using PySerial as the underlying driver would use
         the `.tools.list_ports.comports()` method whenever this method is
         called.
