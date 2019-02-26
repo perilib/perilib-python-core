@@ -32,6 +32,10 @@ class Protocol():
         :param fields: A list containing field definitions describing the
                 packing structure
         :type fields: list
+
+        :returns: Dictionary containing packing format and calculated data
+                length in bytes
+        :rtype: dict
         """
         
         pack_format = "<"
@@ -62,6 +66,9 @@ class Protocol():
         
         :param field_name: Specific field for which to calculate the offset
         :type field_name: str
+        
+        :returns: Byte offset for supplied field, or None if not found
+        :rtype: int
         """
         
         offset = 0
@@ -96,6 +103,9 @@ class Protocol():
         :param packing_info: A dictionary containing the packing format string
                 and expected length in bytes for the corresponding buffer
         :type packing_info: dict
+
+        :returns: Packet byte buffer packed from dictionary
+        :rtype: bytes
 
         If no packing info is provided as an argument, it will be obtained as
         part of the process. It is allowed to be sent as an argument because
@@ -135,6 +145,9 @@ class Protocol():
         :param packing_info: A dictionary containing the packing format string
                 and expected length in bytes for the corresponding buffer
         :type packing_info: dict
+
+        :returns: Dictionary unpacked from byte buffer
+        :rtype: dict
 
         If no packing info is provided as an argument, it will be obtained as
         part of the process. It is allowed to be sent as an argument because
