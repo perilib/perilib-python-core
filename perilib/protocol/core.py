@@ -117,7 +117,13 @@ class Protocol():
 
         value_list = []
         for field in fields:
-            if field["type"] == "uint8a-greedy":
+            if field["type"] in ["uint8a-l8v", "uint8a-l16v"]:
+                # variable-length blob with 8-bit or 16-bit length prefix
+                blob = bytes(values[field["name"]])
+                packing_info["pack_format"] += ("%ds" % len(blob))
+                value_list.append(len(blob))
+                value_list.append(blob)
+            elif field["type"] == "uint8a-greedy":
                 # greedy byte blob with no specified length prefix, so it's only
                 # possible to know/specify the length at packing time
                 blob = bytes(values[field["name"]])
