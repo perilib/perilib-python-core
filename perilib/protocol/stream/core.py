@@ -19,6 +19,10 @@ class StreamProtocol(perilib_protocol_core.Protocol):
 
     incoming_packet_timeout = None
     response_packet_timeout = None
+    
+    backspace_bytes = None
+    terminal_bytes = None
+    trim_bytes = None
 
     @classmethod
     def test_packet_start(cls, buffer, is_tx=False):
@@ -80,7 +84,19 @@ class StreamProtocol(perilib_protocol_core.Protocol):
         
         This class method is called automatically by the parser/generator object
         when new data is received and passed to the parse method."""
+        
+        # check for simple byte-based terminal condition
+        if cls.terminal_bytes is not None and len(cls.terminal_bytes) > 0:
+            # check for a byte match
+            for b in cls.terminal_bytes:
+                if buffer[-1] == b:
+                    # matching terminal byte, packet is complete
+                    return StreamParserGenerator.STATUS_COMPLETE
 
+            # no match, packet is incomplete
+            return StreamParserGenerator.STATUS_IN_PROGRESS
+
+        # no terminal conditions, assume completion after any byte
         return StreamParserGenerator.STATUS_COMPLETE
 
     @classmethod
@@ -596,8 +612,22 @@ class StreamParserGenerator:
 
         # if we are (or may be) in a packet now, process
         if self.parser_status != StreamParserGenerator.STATUS_IDLE:
-            # add byte to the buffer
-            self.rx_buffer += bytes([input_byte_as_int])
+            # check for protocol-defined backspace bytes
+            backspace = False
+            if self.protocol_class.backspace_bytes is not None and len(self.protocol_class.backspace_bytes) > 0:
+                backspace = input_byte_as_int in self.protocol_class.backspace_bytes
+                
+            if backspace:
+                # remove a byte from the buffer, if possible
+                if len(self.rx_buffer) > 0:
+                    self.rx_buffer = self.rx_buffer[:-1]
+                    
+                # check for empty buffer
+                if len(self.rx_buffer) == 0:
+                    self.parser_status = StreamParserGenerator.STATUS_IDLE
+            else:
+                # add byte to the buffer
+                self.rx_buffer += bytes([input_byte_as_int])
 
             # continue testing start conditions if we haven't fully started yet
             if self.parser_status == StreamParserGenerator.STATUS_STARTING:
@@ -609,6 +639,12 @@ class StreamParserGenerator:
 
             # process the complete packet if we finished
             if self.parser_status == StreamParserGenerator.STATUS_COMPLETE:
+                # check for protocol-defined trim bytes
+                if self.protocol_class.trim_bytes is not None and len(self.protocol_class.trim_bytes) > 0:
+                    for b in self.protocol_class.trim_bytes:
+                        if self.rx_buffer[-1] == b:
+                            self.rx_buffer = self.rx_buffer[:-1]
+
                 # convert the buffer to a packet
                 try:
                     self.last_rx_packet = self.protocol_class.get_packet_from_buffer(self.rx_buffer, self)
