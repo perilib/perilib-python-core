@@ -7,4 +7,4 @@ and simple CR/LF-terminated lines of text.
 # .py files
 from .protocol_tlv import *
 from .protocol_ltv import *
-from .protocol_textline import *
+from .protocol_text import *

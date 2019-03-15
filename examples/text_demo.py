@@ -12,7 +12,7 @@ class App():
 
     def __init__(self):
         # set up protocol parser (handles incoming data and builds outgoing data)
-        self.parser_generator = perilib.protocol.stream.StreamParserGenerator(protocol_class=perilib.protocol.stream.generic.TextLineProtocol)
+        self.parser_generator = perilib.protocol.stream.StreamParserGenerator(protocol_class=perilib.protocol.stream.generic.TextProtocol)
         self.parser_generator.on_rx_packet = self.on_rx_packet
         self.parser_generator.on_rx_error = self.on_rx_error
 
