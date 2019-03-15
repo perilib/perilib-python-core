@@ -27,13 +27,14 @@ def main():
 
     # parse() call technique 1: actual bytes() object
     app.parser_generator.parse(b"TEST COMMAND 1\r\n")
+    app.parser_generator.parse(b"TEST ERR\x08\x08\x08COMMAND 2\r\n")
     
     # parse() call technique 2: list of integers
-    app.parser_generator.parse([0x54, 0x45, 0x53, 0x54, 0x20, 0x32, 0x0d, 0x0a])
+    app.parser_generator.parse([0x54, 0x45, 0x53, 0x54, 0x20, 0x33, 0x0d, 0x0a])
     
     # parse() call technique 3: single integers
-    [app.parser_generator.parse(x) for x in [0x54, 0x45, 0x53, 0x54, 0x20, 0x33, 0x0d, 0x0a]]
     [app.parser_generator.parse(x) for x in [0x54, 0x45, 0x53, 0x54, 0x20, 0x34, 0x0d, 0x0a]]
+    [app.parser_generator.parse(x) for x in [0x54, 0x45, 0x53, 0x54, 0x20, 0x35, 0x0d, 0x0a]]
 
 if __name__ == '__main__':
     try:
