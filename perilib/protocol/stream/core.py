@@ -854,7 +854,7 @@ class StreamParserGenerator:
         triggering the timeout condition."""
         
         if self.on_response_packet_timeout is not None:
-            # pass partial packet to timeout callback
+            # pass pending packet name to timeout callback
             self.on_response_packet_timeout(self.response_pending, self)
             
         # reset the pending response
