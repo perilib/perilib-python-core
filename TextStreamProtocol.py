@@ -1,9 +1,9 @@
 import perilib
 
-class TextProtocol(perilib.protocol.stream.StreamProtocol):
+class TextStreamProtocol(perilib.StreamProtocol):
     
     backspace_bytes = [0x08, 0x7F]
-    terminal_bytes = [0x0A]
+    terminal_bytes = [0x0A, 0x0D]
     trim_bytes = [0x0A, 0x0D]
 
     @classmethod
@@ -15,8 +15,4 @@ class TextProtocol(perilib.protocol.stream.StreamProtocol):
             ]
         }
         
-        return TextPacket(buffer=buffer, definition=definition, parser_generator=parser_generator)
-
-class TextPacket(perilib.protocol.stream.StreamPacket):
-
-    pass
+        return perilib.StreamPacket(buffer=buffer, definition=definition, parser_generator=parser_generator)

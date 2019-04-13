@@ -5,6 +5,6 @@ and simple CR/LF-terminated lines of text.
 """
 
 # .py files
-from .protocol_tlv import *
-from .protocol_ltv import *
-from .protocol_text import *
+from .TLVStreamProtocol import *
+from .LTVStreamProtocol import *
+from .TextStreamProtocol import *
