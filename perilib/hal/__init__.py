@@ -10,5 +10,5 @@ TODO: Support for register-based protocols used by many I2C slaves
 """
 
 # .py files
-from . import core
-from . import serial
+from .UartManager import *
+from .UartStream import *

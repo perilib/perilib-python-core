@@ -1,374 +1,8 @@
-import time
-import struct
-import threading
 import collections
+import threading
 
-from ... import core as perilib_core
-from .. import core as perilib_protocol_core
-
-class StreamProtocol(perilib_protocol_core.Protocol):
-    """Generic stream protocol definition.
-    
-    This class provides a foundation for stream-based protocols, including stub
-    methods required to detect packet boundaries and instantiate new packet
-    instances from incoming data. Without subclassing, this considers every new
-    byte to be a new packet, which is not suitable for virtually any real use
-    case. You will most likely need to implement a subclass with more specific
-    boundary detection (at the very least) suitable to the specific protocol
-    that is being used."""
-
-    incoming_packet_timeout = None
-    response_packet_timeout = None
-    
-    backspace_bytes = None
-    terminal_bytes = None
-    trim_bytes = None
-
-    @classmethod
-    def test_packet_start(cls, buffer, is_tx=False):
-        """Test whether a packet has started.
-        
-        :param buffer: Current data buffer to be tested
-        :type buffer: bytes
-
-        :param is_tx: Whether the buffer is incoming (false) or outgoing (true)
-                data
-        :type is_tx: boolean
-
-        Since many protocols have a unique mechanism for determining the start
-        of a new frame (e.g. 0x55 byte), this method may be overridden to use a
-        more complex test based on the contents of the `buffer` argument (which
-        is a `bytes` object). The default implementation here assumes that any
-        data received is the beginning of a new packet.
-        
-        Available return values are STATUS_IN_PROGRESS to indicate that the
-        packet has started, STATUS_STARTING to indicate that additional bytes
-        are necessary before knowing for sure that the packet has started, and
-        STATUS_IDLE to indicate that no packet has started and the parser should
-        return to an idle state.
-        
-        This class method is called automatically by the parser/generator object
-        when new data is received and passed to the parse method."""
-        
-        return StreamParserGenerator.STATUS_IN_PROGRESS
-
-    @classmethod
-    def test_packet_complete(cls, buffer, is_tx=False):
-        """Test whether a packet has finished.
-        
-        :param buffer: Current data buffer to be tested
-        :type buffer: bytes
-
-        :param is_tx: Whether the buffer is incoming (false) or outgoing (true)
-                data
-        :type is_tx: boolean
-
-        Almost every protocol has a way to determine when an incoming packet is
-        complete, especially if each packet may be a different length. Often,
-        packets end with a CRC block or other type of validation data that must
-        be checked in order to accept the packet as valid. This method may be
-        overridden to check whatever conditions are necessary against on the
-        contents of the `buffer` argument (which is a `bytes` object). The
-        default implementation here assumes any data is the end of a new packet.
-        
-        NOTE: in combination with the default start test condition, this means
-        that each individual byte received is treated as a complete packet. This
-        is ALMOST CERTAINLY not what you want, so one or both of these methods
-        should be overridden with specific conditions for real protocols.
-        
-        Suitable return values are STATUS_IN_PROGRESS to indicate that the
-        packet is not yet finished, STATUS_COMPLETE to indicate that the packet
-        is complete and valid and should be processed, and STATUS_IDLE to
-        indicate that the previously in-progresss packet has failed validation
-        of some type and data should be dropped.
-        
-        This class method is called automatically by the parser/generator object
-        when new data is received and passed to the parse method."""
-        
-        # check for simple byte-based terminal condition
-        if cls.terminal_bytes is not None and len(cls.terminal_bytes) > 0:
-            # check for a byte match
-            for b in cls.terminal_bytes:
-                if buffer[-1] == b:
-                    # matching terminal byte, packet is complete
-                    return StreamParserGenerator.STATUS_COMPLETE
-
-            # no match, packet is incomplete
-            return StreamParserGenerator.STATUS_IN_PROGRESS
-
-        # no terminal conditions, assume completion after any byte
-        return StreamParserGenerator.STATUS_COMPLETE
-
-    @classmethod
-    def get_packet_from_buffer(cls, buffer, parser_generator=None, is_tx=False):
-        """Generates a packet object from a binary buffer.
-        
-        :param buffer: Data buffer from which to create a packet object
-        :type buffer: bytes
-
-        :param parser_generator: Parser/generator object to associate with the
-                newly created packet, if any
-        :type parser_generator: StreamParserGenerator
-
-        :param is_tx: Whether the buffer is incoming (false) or outgoing (true)
-                data
-        :type is_tx: boolean
-
-        Internally, this method is called once an incoming packet is received
-        without error. This method accepts the buffer, parser/generator object,
-        and packet direction (RX or TX) and must assembled a fully populated
-        packet object using this information. The `is_tx` argument is provided
-        in case the direction of data flow is itself an indicator of the type of
-        packet, e.g. a command vs. response packet which structurally look the
-        same but must be one or the other based on which device sent the packet.
-        
-        The parser/generator object is also provided in case some specific state
-        information maintained by this object is required in order to correctly
-        identify the packet.
-        
-        This method must do the following:
-        
-        1. Identify the correct packet definition based on the binary content
-        2. Unpack all of the binary data into a dictionary
-        3. Validate the dictionary contents (argument data) based on the packet
-           definition
-
-        This default implementation does not assume anything about the buffer
-        content, but simply creates a packet instance directly without any
-        special processing. In virtually every real use case, child classes
-        *will* need to override this implementation."""
-        
-        return StreamPacket(buffer=buffer, parser_generator=parser_generator)
-
-    @classmethod
-    def get_packet_from_name_and_args(cls, _packet_name, _parser_generator=None, **kwargs):
-        """Generates a packet object from a name and argument dictionary.
-        
-        :param _packet_name: Name of the packet to search for
-        :type _packet_name: str
-
-        :param _parser_generator: Parser/generator object to associate with the
-                newly created packet, if any
-        :type _parser_generator: StreamParserGenerator
-
-        :param kwargs: Dictionray of arguments to use for assembling the packet
-        :type kwargs: dict
-
-        Internally, this method is called in order to create a packet and fill
-        the binary buffer prior to transmission, typically as a result of a call
-        to the `send_packet()` or `send_and_wait()` method. The `kwargs`
-        dictionary contains the named packet arguments which must be converted
-        into a packed binary structure (if any are required).
-        
-        This method must do the following:
-        
-        1. Identify the correct packet definition based on the supplied name
-        2. Validate the supplied arguments based on the packet definition
-        3. Pack all of the arguments into a binary buffer (`bytes()` object)
-        
-        Child classes must override this method since this process requires a
-        custom protocol definition to work with, e.g. a list containing packet
-        structures and argument names/types for each packet, and this is not
-        available in the base class."""
-        
-        raise perilib_core.PerilibProtocolException(
-                "Cannot generate '%s' packet using base StreamProtocol method, "
-                "no definitions available", _packet_name)
-
-class StreamPacket(perilib_protocol_core.Packet):
-    """Generic stream packet definition.
-    
-    This class represents a single packet in a stream-based protocol. It may be
-    either an incoming or outgoing packet, and may be created either from a byte
-    buffer (typically from from incoming data) or from a dictionary of payload
-    and possibly header/footer values (typically for outgoing data). This may
-    also be subclassed to protocol-specific packet definitions as required for
-    special classification or handling."""
-
-    TYPE_GENERIC = 0
-    TYPE_STR = ["generic"]
-    TYPE_ARG_CONTEXT = ["args"]
-
-    def __init__(self, type=TYPE_GENERIC, name=None, definition=None, buffer=None, header=None, payload=None, footer=None, metadata=None, parser_generator=None):
-        """Creates a new stream packet instance.
-        
-        :param type: Packet type
-        :type type: int
-
-        :param name: Name of the packet
-        :type name: str
-
-        :param definition: Structure of this packet from the protocol definition
-        :type definition: dict
-
-        :param buffer: Binary buffer from which to create the packet
-        :type buffer: bytes
-
-        :param header: Header arguments for this packet, if any
-        :type header: dict
-
-        :param payload: Payload arguments for this packet, if any
-        :type payload: dict
-
-        :param footer: Footer arguments for this packet, if any
-        :type footer: dict
-
-        :param metadata: Custom metadata for this packet, if any
-        :type metadata: dict
-
-        :param parser_generator: Parser/generator object to associate with the
-                newly created packet, if any
-        :type parser_generator: StreamParserGenerator
-
-        Supplying particular combinations of arguments to this constructor will
-        result in a fully populated/configured packet instance. Most often, this
-        is used to create a new packet object either from a binary buffer (which
-        is mapped to a packet name and argument dictionary for processing) or
-        from a packet name and argument dictionary (which is converted into a
-        binary buffer ready for transmission).
-        
-        In both of these cases, the structural definition of the packet must be
-        supplied as well, or no conversion can occur. It is assumed that the
-        caller will already have identified the right entry in the relevant
-        protocol class, and will then pass this along (with any required packet-
-        specific modifications) in the `definition` argument.
-        """
-        
-        self.type = type
-        self.name = name
-        self.definition = definition
-        self.buffer = buffer
-        self.header = header
-        self.payload = payload
-        self.footer = footer
-        self.metadata = metadata
-        self.parser_generator = parser_generator
-        
-        if self.definition is not None:
-            if self.name is None and "name" in self.definition:
-                # use name from packet definition
-                self.name = self.definition["name"]
-            
-            # build whatever side of the packet is still missing
-            if self.buffer is not None:
-                self.build_structure_from_buffer()
-            elif self.header is not None or self.payload is not None or self.footer is not None:
-                self.build_buffer_from_structure()
-
-    def __getitem__(self, arg):
-        """Convenience accessor for payload arguments.
-        
-        :param arg: Name of the payload argument to get
-        :type arg: str
-
-        With this method, you can directly read payload entries without
-        explicitly using the `.payload` attribute, but rather using the packet
-        object itself as a dictionary."""
-        
-        return self.payload[arg]
-
-    def __str__(self):
-        """Generates the string representation of the device.
-        
-        This implementation displays the packet name, type, payload details, and
-        stream source (if available). It provides a good foundation for quick
-        console displays or debugging information. Raw binary structure is not
-        shown."""
-
-        s = ""
-        if self.definition is None:
-            s = "undefined %s packet" % self.TYPE_STR[self.type]
-        else:
-            s = "%s (%s): { " % (self.name, self.TYPE_STR[self.type])
-            arg_values = []
-            for x in self.definition[self.TYPE_ARG_CONTEXT[self.type]]:
-                arg_values.append("%s: %s" % (x["name"], self.payload[x["name"]]))
-            if len(arg_values) > 0:
-                s += ', '.join(arg_values) + ' '
-            s += "}"
-        if self.parser_generator is not None and self.parser_generator.stream is not None:
-            s += " via %s" % (self.parser_generator.stream)
-        else:
-            s += " via unidentified stream"
-        return s
-
-    def build_structure_from_buffer(self):
-        """Fills packet structure data based on a byte buffer and definition.
-        
-        This method uses the already-stored packet definition and binary byte
-        buffer to unpack the contents into a dictionary, including (where
-        necessary) header and footer information. The definition and byte
-        buffer must already have been supplied before calling this method. The
-        class constructor automatically calls this method if both a definition
-        and byte buffer are supplied when instantiating a new packet, but you
-        can also call it by hand afterwards if necessary."""
-        
-        # header (optional)
-        if "header_args" in self.definition:
-            header_packing_info = perilib_protocol_core.Protocol.calculate_packing_info(self.definition["header_args"])
-            header_expected_length = header_packing_info["expected_length"]
-            self.header = perilib_protocol_core.Protocol.unpack_values(
-                self.buffer[:header_expected_length],
-                self.definition["header_args"],
-                header_packing_info
-            )
-        else:
-            self.header = {}
-            header_expected_length = 0
-            
-        # footer (optional)
-        if "footer_args" in self.definition:
-            footer_packing_info = perilib_protocol_core.Protocol.calculate_packing_info(self.definition["footer_args"])
-            footer_expected_length = footer_packing_info["expected_length"]
-            self.footer = perilib_protocol_core.Protocol.unpack_values(
-                    self.buffer[-footer_expected_length:],
-                    self.definition["footer_args"],
-                    footer_packing_info)
-        else:
-            self.footer = {}
-            footer_expected_length = 0
-
-        # payload (required)
-        payload_packing_info = perilib_protocol_core.Protocol.calculate_packing_info(self.definition[self.TYPE_ARG_CONTEXT[self.type]])
-        self.payload = perilib_protocol_core.Protocol.unpack_values(
-                self.buffer[header_expected_length:len(self.buffer)-footer_expected_length],
-                self.definition[self.TYPE_ARG_CONTEXT[self.type]],
-                payload_packing_info)
-
-    def build_buffer_from_structure(self):
-        """Generates a binary buffer based on a dictionary and definition.
-        
-        This method uses the already-stored packet definition and argument
-        dictionary to create a byte buffer representing the payload of a packet,
-        ready for transmission using a stream object. Note that many protocols
-        will need to add further content before and/or after the payload, using
-        headers and footers. Since this is optional and usually dependent on
-        protocol-specific metadata and/or payload content (such as CRC
-        calculation), the post-creation method is separated from this one to
-        simplify overriding only that part. Normally, you will not need to
-        override this particular method in a subclass."""
-
-        # pack all arguments into binary buffer
-        payload_packing_info = perilib_protocol_core.Protocol.calculate_packing_info(self.definition[self.TYPE_ARG_CONTEXT[self.type]])
-        self.buffer = perilib_protocol_core.Protocol.pack_values(
-                self.payload,
-                self.definition[self.TYPE_ARG_CONTEXT[self.type]],
-                payload_packing_info)
-
-        # allow arbitrary buffer manipulation, e.g. adding headers/footers
-        # (easier to re-implement just that instead of this whole method)
-        self.prepare_buffer_after_building()
-
-    def prepare_buffer_after_building(self):
-        """Perform final modifications to buffer after packing the payload.
-        
-        Protocols that require a header (e.g. type/length data) and/or footer
-        (e.g. CRC data) can override this method to prepend/append or otherwise
-        modify data in the packet buffer before the dictionary-to-byte-array
-        conversion process is considered to be complete. The stub implementation
-        in this base class simply does nothing."""
-        
-        pass
+from .Exceptions import *
+from .StreamProtocol import *
 
 class StreamParserGenerator:
     """Parser/generator class for stream-based protocols.
@@ -386,15 +20,6 @@ class StreamParserGenerator:
     This allows the application to remain separated from any sort of low-level
     data stream handling, and instead react only to complete, validated packets
     as they arrive."""
-
-    PROCESS_SELF = 1
-    PROCESS_SUBS = 2
-    PROCESS_BOTH = 3
-
-    STATUS_IDLE = 0
-    STATUS_STARTING = 1
-    STATUS_IN_PROGRESS = 2
-    STATUS_COMPLETE = 3
 
     def __init__(self, protocol_class=StreamProtocol, stream=None):
         """Creates a new parser/generator instance.
@@ -517,7 +142,7 @@ class StreamParserGenerator:
         necessary (though it is usually not needed)."""
         
         self.rx_buffer = b''
-        self.parser_status = StreamParserGenerator.STATUS_IDLE
+        self.parser_status = ParseStatus.IDLE
         self._incoming_packet_t0 = 0
         
     def queue(self, input_data):
@@ -602,16 +227,16 @@ class StreamParserGenerator:
         will packets that partially arrive but time out (if an incoming packet
         timeout is defined)."""
         
-        if self.parser_status == StreamParserGenerator.STATUS_IDLE:
+        if self.parser_status == ParseStatus.IDLE:
             # not already in a packet, so run through start boundary test function
             self.parser_status = self.protocol_class.test_packet_start(bytes([input_byte_as_int]), self)
 
             # if we just started and there's a defined timeout, start the timer
-            if self.parser_status != StreamParserGenerator.STATUS_IDLE and self.incoming_packet_timeout is not None:
+            if self.parser_status != ParseStatus.IDLE and self.incoming_packet_timeout is not None:
                 self._incoming_packet_t0 = time.time()
 
         # if we are (or may be) in a packet now, process
-        if self.parser_status != StreamParserGenerator.STATUS_IDLE:
+        if self.parser_status != ParseStatus.IDLE:
             # check for protocol-defined backspace bytes
             backspace = False
             if self.protocol_class.backspace_bytes is not None and len(self.protocol_class.backspace_bytes) > 0:
@@ -624,21 +249,21 @@ class StreamParserGenerator:
                     
                 # check for empty buffer
                 if len(self.rx_buffer) == 0:
-                    self.parser_status = StreamParserGenerator.STATUS_IDLE
+                    self.parser_status = ParseStatus.IDLE
             else:
                 # add byte to the buffer
                 self.rx_buffer += bytes([input_byte_as_int])
 
             # continue testing start conditions if we haven't fully started yet
-            if self.parser_status == StreamParserGenerator.STATUS_STARTING:
+            if self.parser_status == ParseStatus.STARTING:
                 self.parser_status = self.protocol_class.test_packet_start(self.rx_buffer, self)
 
             # test for completion conditions if we've fully started
-            if self.parser_status == StreamParserGenerator.STATUS_IN_PROGRESS:
+            if self.parser_status == ParseStatus.IN_PROGRESS:
                 self.parser_status = self.protocol_class.test_packet_complete(self.rx_buffer, self)
 
             # process the complete packet if we finished
-            if self.parser_status == StreamParserGenerator.STATUS_COMPLETE:
+            if self.parser_status == ParseStatus.COMPLETE:
                 # check for protocol-defined trim bytes
                 if self.protocol_class.trim_bytes is not None and len(self.protocol_class.trim_bytes) > 0:
                     for b in self.protocol_class.trim_bytes:
@@ -668,7 +293,7 @@ class StreamParserGenerator:
                             self.response_pending = None
                             self._wait_timed_out = False
                             self._wait_packet_event.set()
-                except perilib_core.PerilibProtocolException as e:
+                except PerilibProtocolException as e:
                     if self.on_rx_error is not None:
                         self.on_rx_error(e, self.rx_buffer, self)
 
@@ -783,7 +408,7 @@ class StreamParserGenerator:
             result = self.wait_packet()
         return result
 
-    def process(self, mode=PROCESS_BOTH, force=False):
+    def process(self, mode=ProcessMode.BOTH, force=False):
         """Handle any pending events or data waiting to be processed.
         
         :param mode: Processing mode defining whether to run for this object,

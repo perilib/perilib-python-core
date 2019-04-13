@@ -14,8 +14,16 @@ will not work in 2.x.
 """
 
 # .py files
-from .core import *
+from .common import *
+from .Device import *
+from .Exceptions import *
+from .Manager import *
+from .Stream import *
+from .StreamDevice import *
+from .StreamPacket import *
+from .StreamParserGenerator import *
+from .StreamProtocol import *
+from .TextStreamProtocol import *
 
 # submodule folders
-from . import protocol
 from . import hal
