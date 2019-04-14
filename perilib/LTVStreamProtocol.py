@@ -1,15 +1,17 @@
-import perilib
+from .common import *
+from .StreamProtocol import *
+from .StreamPacket import *
 
-class LTVStreamProtocol(perilib.StreamProtocol):
+class LTVStreamProtocol(StreamProtocol):
 
     @classmethod
     def test_packet_complete(cls, buffer, new_byte, is_tx=False):
         # simple terminal condition for LTV data, where L/T are single bytes
         # [length] [type] [v0, v1, ..., v<length>]
         if len(buffer) > 0 and len(buffer) + 1 == buffer[0] + 1:
-            return perilib.ParseStatus.COMPLETE
+            return ParseStatus.COMPLETE
         else:
-            return perilib.ParseStatus.IN_PROGRESS
+            return ParseStatus.IN_PROGRESS
 
     @classmethod
     def get_packet_from_buffer(cls, buffer, parser_generator=None, is_tx=False):
@@ -21,4 +23,4 @@ class LTVStreamProtocol(perilib.StreamProtocol):
                 { "name": "value", "type": "uint8a-greedy" }
             ]
         }
-        return perilib.StreamPacket(buffer=buffer, definition=definition, parser_generator=parser_generator)
+        return StreamPacket(buffer=buffer, definition=definition, parser_generator=parser_generator)

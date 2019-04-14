@@ -24,5 +24,9 @@ from .StreamPacket import *
 from .StreamParserGenerator import *
 from .StreamProtocol import *
 
+from .TLVStreamProtocol import *
+from .LTVStreamProtocol import *
+from .TextStreamProtocol import *
+
 # submodule folders
 from . import hal
