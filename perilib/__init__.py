@@ -23,7 +23,6 @@ from .StreamDevice import *
 from .StreamPacket import *
 from .StreamParserGenerator import *
 from .StreamProtocol import *
-from .TextStreamProtocol import *
 
 # submodule folders
 from . import hal
