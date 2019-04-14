@@ -1,4 +1,5 @@
 from .UartStream import *
+from ..Exceptions import *
 from ..Manager import *
 from ..StreamDevice import *
 from ..StreamParserGenerator import *
@@ -108,23 +109,34 @@ class UartManager(Manager):
                 connected_devices[port_info.device] = self.devices[port_info.device]
             else:
                 # create new device and stream instance
-                if isinstance(port, serial.tools.list_ports_common.ListPortInfo):
-                    # provided port info object
-                    self.port = serial.Serial()
-                    self.port.port = port.device
-                    self.port_info = port
-                else:
-                    # provided serial port object directly
-                    self.port_info = None
-                    self.port = port
 
-                    # attempt to find port info based on device name
-                    for port_info in serial.tools.list_ports.comports():
-                        if port_info.device.lower() == port.port.lower():
-                            self.port_info = port_info
+                # make sure the application provided everything necessary
+                if self.stream_class == None:
+                    raise PerilibHalException("Manager cannot attach stream without defined stream_class attribute")
 
+                # create and configure data stream object
+                stream = self.stream_class()
+                stream.on_disconnect_device = self._on_disconnect_device # use internal disconnection callback
+                stream.on_open_stream = self.on_open_stream
+                stream.on_close_stream = self.on_close_stream
+                stream.on_rx_data = self._on_rx_data # use internal RX data callback
+                stream.on_tx_data = self.on_tx_data
+                stream.use_threading = True if (self.threading_flags & Manager.STREAM_THREADING) != 0 else False
+
+                # create and attach PySerial port instance to stream (not opened yet)
+                stream.port = serial.Serial()
+                stream.port.port = port_info.device
+                stream.port_info = port_info
+
+                # create device with stream attached
+                device = self.device_class(port_info.device, stream)
                 
-                connected_devices[port_info.device] = self.device_class(port_info.device, port_info)
+                # add reference from stream back up to device for convenience
+                stream.device = device
+                
+                # add device and stream to internal tables for management
+                self.streams[port_info.device] = stream
+                connected_devices[port_info.device] = device
                 
         # clean out list of recently disconnected devices
         del self._recently_disconnected_devices[:]
@@ -168,22 +180,6 @@ class UartManager(Manager):
                         self.stop()
 
             if open_stream == True:
-                # make sure the application provided everything necessary
-                if self.stream_class == None:
-                    raise perilib_core.PerilibHalException("Manager cannot auto-open stream without defined stream_class attribute")
-
-                # create and configure data stream object
-                self.streams[device.id] = self.stream_class(device=device)
-                self.streams[device.id].on_disconnect_device = self._on_disconnect_device # use internal disconnection callback
-                self.streams[device.id].on_open_stream = self.on_open_stream
-                self.streams[device.id].on_close_stream = self.on_close_stream
-                self.streams[device.id].on_rx_data = self._on_rx_data # use internal RX data callback
-                self.streams[device.id].on_tx_data = self.on_tx_data
-                self.streams[device.id].use_threading = True if (self.threading_flags & core.Manager.STREAM_THREADING) != 0 else False
-                
-                # give stream reference to device
-                self.devices[device.id].stream = self.streams[device.id]
-                
                 # create and configure parser/generator object if protocol is available
                 if self.protocol_class != None:
                     parser_generator = self.parser_generator_class(protocol_class=self.protocol_class, stream=self.streams[device.id])
@@ -192,7 +188,7 @@ class UartManager(Manager):
                     parser_generator.on_rx_error = self.on_rx_error
                     parser_generator.on_incoming_packet_timeout = self.on_incoming_packet_timeout
                     parser_generator.on_response_packet_timeout = self.on_response_packet_timeout
-                    parser_generator.use_threading = True if (self.threading_flags & core.Manager.PARGEN_THREADING) != 0 else False
+                    parser_generator.use_threading = True if (self.threading_flags & Manager.PARGEN_THREADING) != 0 else False
                     self.streams[device.id].parser_generator = parser_generator
                 
                     if parser_generator.use_threading:

@@ -1,5 +1,6 @@
 import collections
 import threading
+import time
 
 from .Exceptions import *
 from .StreamProtocol import *

@@ -22,7 +22,7 @@ class UartStream(Stream):
         :rtype: str
         """
 
-        return self.device.id
+        return self.port_info.device if self.port_info is not None else "unidentified stream"
 
     def open(self):
         """Opens the serial stream.
@@ -33,8 +33,8 @@ class UartStream(Stream):
 
         # don't start if we're already running
         if not self.is_open:
-            if not self.device.port.is_open:
-                self.device.port.open()
+            if not self.port.is_open:
+                self.port.open()
                 self._port_open = True
             if self.on_open_stream is not None:
                 # trigger application callback
@@ -59,7 +59,7 @@ class UartStream(Stream):
             if self._port_open:
                 self._port_open = False
                 try:
-                    self.device.port.close()
+                    self.port.close()
                 except (OSError, serial.serialutil.SerialException) as e:
                     pass
                     
@@ -84,7 +84,7 @@ class UartStream(Stream):
             self.on_tx_data(data, self)
             
         try:
-            result = self.device.port.write(data)
+            result = self.port.write(data)
         except serial.serialutil.SerialException as e:
             result = False
             
@@ -115,9 +115,9 @@ class UartStream(Stream):
             # check for available data
             if mode in [ProcessMode.SELF, ProcessMode.BOTH] \
                     and self.is_open \
-                    and self.device.port.in_waiting != 0:
+                    and self.port.in_waiting != 0:
                 # read all available data
-                data = self.device.port.read(self.device.port.in_waiting)
+                data = self.port.read(self.port.in_waiting)
 
                 # pass data to internal receive callback
                 self._on_rx_data(data)
@@ -151,10 +151,10 @@ class UartStream(Stream):
         while threading.get_ident() not in self._stop_thread_ident_list:
             try:
                 # read one byte at first, no timeout (blocking, low CPU usage)
-                data = self.device.port.read()
-                if self.device.port.in_waiting != 0:
+                data = self.port.read()
+                if self.port.in_waiting != 0:
                     # if more data is available now, read it immediately
-                    data += self.device.port.read(self.device.port.in_waiting)
+                    data += self.port.read(self.port.in_waiting)
 
                 # pass data to internal receive callback
                 self._on_rx_data(data)
@@ -185,7 +185,7 @@ class UartStream(Stream):
         if self._port_open:
             try:
                 # might fail due if the underlying port is already closed
-                self.device.port.close()
+                self.port.close()
             except (OSError, serial.serialutil.SerialException) as e:
                 # silently ignore failures to close the port
                 pass
