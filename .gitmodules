@@ -1,9 +1,6 @@
 [submodule "perilib/silabs_bgapi"]
 	path = perilib/silabs_bgapi
 	url = https://github.com/perilib/perilib-python-silabs-bgapi
-[submodule "perilib/generic"]
-	path = perilib/generic
-	url = https://github.com/perilib/perilib-python-generic
 [submodule "perilib/robotis_dynamixel2"]
 	path = perilib/robotis_dynamixel2
 	url = https://github.com/perilib/perilib-python-robotis-dynamixel2
