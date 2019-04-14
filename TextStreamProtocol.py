@@ -3,7 +3,7 @@ import perilib
 class TextStreamProtocol(perilib.StreamProtocol):
     
     backspace_bytes = [0x08, 0x7F]
-    terminal_bytes = [0x0A, 0x0D]
+    terminal_bytes = [0x0A]
     trim_bytes = [0x0A, 0x0D]
 
     @classmethod
