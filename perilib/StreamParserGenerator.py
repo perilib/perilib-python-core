@@ -228,9 +228,12 @@ class StreamParserGenerator:
         will packets that partially arrive but time out (if an incoming packet
         timeout is defined)."""
         
+        # add byte to buffer (note, byte may be removed later if detected as backspace)
+        self.rx_buffer += bytes([input_byte_as_int])
+
         if self.parser_status == ParseStatus.IDLE:
             # not already in a packet, so run through start boundary test function
-            self.parser_status = self.protocol_class.test_packet_start(self.rx_buffer, input_byte_as_int, self)
+            self.parser_status = self.protocol_class.test_packet_start(self.rx_buffer, self)
 
             # if we just started and there's a defined timeout, start the timer
             if self.parser_status != ParseStatus.IDLE and self.incoming_packet_timeout is not None:
@@ -244,8 +247,12 @@ class StreamParserGenerator:
                 backspace = input_byte_as_int in self.protocol_class.backspace_bytes
                 
             if backspace:
-                # remove a byte from the buffer, if possible
-                if len(self.rx_buffer) > 0:
+                # remove backspace + previous byte from buffer, if possible
+                if len(self.rx_buffer) > 1:
+                    # buffer had data in it before
+                    self.rx_buffer = self.rx_buffer[:-2]
+                else:
+                    # buffer had no data, so just remove the backspace
                     self.rx_buffer = self.rx_buffer[:-1]
                     
                 # check for empty buffer
@@ -254,14 +261,11 @@ class StreamParserGenerator:
             else:
                 # continue testing start conditions if we haven't fully started yet
                 if self.parser_status == ParseStatus.STARTING:
-                    self.parser_status = self.protocol_class.test_packet_start(self.rx_buffer, input_byte_as_int, self)
+                    self.parser_status = self.protocol_class.test_packet_start(self.rx_buffer, self)
 
                 # test for completion conditions if we've fully started
                 if self.parser_status == ParseStatus.IN_PROGRESS:
-                    self.parser_status = self.protocol_class.test_packet_complete(self.rx_buffer, input_byte_as_int, self)
-                    
-                # add byte to the buffer
-                self.rx_buffer += bytes([input_byte_as_int])
+                    self.parser_status = self.protocol_class.test_packet_complete(self.rx_buffer, self)
 
             # process the complete packet if we finished
             if self.parser_status == ParseStatus.COMPLETE:
@@ -302,7 +306,7 @@ class StreamParserGenerator:
                     self.reset()
         else:
             # still idle after parsing a byte, probably malformed/junk data
-            self._incoming_packet_t0 = 0
+            self.reset()
 
     def generate(self, _packet_name, **kwargs):
         """Create a packet from a name and argument dictionary.

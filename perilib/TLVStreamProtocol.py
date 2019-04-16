@@ -5,10 +5,10 @@ from .StreamPacket import *
 class TLVStreamProtocol(StreamProtocol):
 
     @classmethod
-    def test_packet_complete(cls, buffer, new_byte, is_tx=False):
+    def test_packet_complete(cls, buffer, is_tx=False):
         # simple terminal condition for TLV data, where T/L are single bytes
         # [type] [length] [v0, v1, ..., v<length>]
-        if len(buffer) > 1 and len(buffer) + 1 == buffer[1] + 2:
+        if len(buffer) > 1 and len(buffer) == buffer[1] + 2:
             return ParseStatus.COMPLETE
         else:
             return ParseStatus.IN_PROGRESS

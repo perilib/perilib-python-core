@@ -206,14 +206,11 @@ class StreamProtocol():
         return values
 
     @classmethod
-    def test_packet_start(cls, buffer, new_byte, is_tx=False):
+    def test_packet_start(cls, buffer, is_tx=False):
         """Test whether a packet has started.
         
-        :param buffer: Current data buffer (not including new byte)
+        :param buffer: Current data buffer
         :type buffer: bytes
-        
-        :param new_byte: New incoming byte
-        :type new_byte: int
 
         :param is_tx: Whether the data is incoming (false) or outgoing (true)
         :type is_tx: boolean
@@ -236,14 +233,11 @@ class StreamProtocol():
         return ParseStatus.IN_PROGRESS
 
     @classmethod
-    def test_packet_complete(cls, buffer, new_byte, is_tx=False):
+    def test_packet_complete(cls, buffer, is_tx=False):
         """Test whether a packet has finished.
         
         :param buffer: Current data buffer (not including new byte)
         :type buffer: bytes
-        
-        :param new_byte: New incoming byte
-        :type new_byte: int
 
         :param is_tx: Whether the data is incoming (false) or outgoing (true)
         :type is_tx: boolean
@@ -274,7 +268,7 @@ class StreamProtocol():
         if cls.terminal_bytes is not None and len(cls.terminal_bytes) > 0:
             # check for a byte match
             for b in cls.terminal_bytes:
-                if new_byte == b:
+                if buffer[-1] == b:
                     # matching terminal byte, packet is complete
                     return ParseStatus.COMPLETE
 

@@ -15,14 +15,16 @@ will not work in 2.x.
 
 # .py files
 from .common import *
-from .Device import *
 from .Exceptions import *
+
 from .Manager import *
+from .Device import *
 from .Stream import *
+
 from .StreamDevice import *
-from .StreamPacket import *
 from .StreamParserGenerator import *
 from .StreamProtocol import *
+from .StreamPacket import *
 
 from .TLVStreamProtocol import *
 from .LTVStreamProtocol import *
