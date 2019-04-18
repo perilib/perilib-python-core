@@ -18,7 +18,7 @@ class Manager:
     
     MANAGER_THREADING = 1
     STREAM_THREADING = 2
-    PARGEN_THREADING = 4
+    PARSER_THREADING = 4
     
     def __init__(self):
         """Initializes a manager instance.

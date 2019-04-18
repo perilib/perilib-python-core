@@ -188,7 +188,7 @@ class UartManager(Manager):
                     parser_generator.on_rx_error = self.on_rx_error
                     parser_generator.on_incoming_packet_timeout = self.on_incoming_packet_timeout
                     parser_generator.on_response_packet_timeout = self.on_response_packet_timeout
-                    parser_generator.use_threading = True if (self.threading_flags & Manager.PARGEN_THREADING) != 0 else False
+                    parser_generator.use_threading = True if (self.threading_flags & Manager.PARSER_THREADING) != 0 else False
                     self.streams[device.id].parser_generator = parser_generator
                 
                     if parser_generator.use_threading:
