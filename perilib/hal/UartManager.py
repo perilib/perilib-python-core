@@ -170,8 +170,8 @@ class UartManager(Manager):
                 open_stream = True
             if self.auto_open == UartManager.AUTO_OPEN_SINGLE:
                 # check whether we're already monitoring a stream
-                if len(self.streams) == 0:
-                    # open a new stream for just this one
+                if len(self.devices) == 1:
+                    # open this stream only (first connected device)
                     open_stream = True
                     
                     if self.use_threading:
