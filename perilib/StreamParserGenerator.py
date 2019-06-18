@@ -62,6 +62,7 @@ class StreamParserGenerator:
         self.protocol_class = protocol_class
         self.stream = stream
         self.on_rx_packet = None
+        self.on_tx_packet = None
         self.on_rx_error = None
         self.on_incoming_packet_timeout = None
         self.on_response_packet_timeout = None
@@ -70,6 +71,7 @@ class StreamParserGenerator:
 
         # these attributes should only be read externally, not written
         self.last_rx_packet = None
+        self.last_tx_packet = None
         self.response_pending = None
         self.is_running = False
         self.rx_deque = collections.deque()

@@ -40,6 +40,8 @@ class Stream:
         self.on_rx_data = None
         self.on_tx_data = None
         self.on_disconnect_device = None
+        self.port = None
+        self.port_info = None
         
         # these attributes should only be read externally, not written
         self.is_running = False
