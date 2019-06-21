@@ -133,6 +133,8 @@ class StreamProtocol():
 
         value_list = []
         for field in fields:
+            if field["name"] not in values:
+                raise PerilibProtocolException("Field '%s' value is required to build packet " % field["name"])
             if field["type"] in ["uint8a-l8v", "uint8a-l16v"]:
                 # variable-length blob with 8-bit or 16-bit length prefix
                 blob = bytes(values[field["name"]])
