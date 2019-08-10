@@ -70,8 +70,8 @@ class StreamParserGenerator:
         self.response_packet_timeout = self.protocol_class.response_packet_timeout
 
         # these attributes should only be read externally, not written
-        self.last_rx_packet = None
-        self.last_tx_packet = None
+        self.rx_packet = None
+        self.tx_packet = None
         self.response_pending = None
         self.is_running = False
         self.rx_deque = collections.deque()
@@ -279,21 +279,21 @@ class StreamParserGenerator:
 
                 # convert the buffer to a packet
                 try:
-                    self.last_rx_packet = self.protocol_class.get_packet_from_buffer(self.rx_buffer, self)
+                    self.rx_packet = self.protocol_class.get_packet_from_buffer(self.rx_buffer, self)
 
                     # reset the parser
                     self.reset()
                     
-                    if self.last_rx_packet is not None:
+                    if self.rx_packet is not None:
                         release_wait_lock = False
-                        if self.last_rx_packet.name == self.response_pending:
+                        if self.rx_packet.name == self.response_pending:
                             # cancel timer and clear pending info
                             self._response_packet_t0 = 0
                             release_wait_lock = True
 
                         if self.on_rx_packet:
                             # pass packet to receive callback
-                            self.on_rx_packet(self.last_rx_packet)
+                            self.on_rx_packet(self.rx_packet)
                             
                         # fire the wait event if necessary
                         if release_wait_lock:
@@ -398,7 +398,7 @@ class StreamParserGenerator:
             self._wait_packet_event.clear()
                 
         # return the last packet received, or None if we timed out
-        return self.last_rx_packet if not self._wait_timed_out else None
+        return self.rx_packet if not self._wait_timed_out else None
         
     def send_and_wait(self, _packet_name, **kwargs):
         """Send a packet and wait for a response.
