@@ -438,10 +438,10 @@ class StreamParserGenerator:
         while len(self.rx_deque) > 0:
             self.parse_byte(self.rx_deque.popleft())
         
-        if self._incoming_packet_t0 != 0 and time.time() - self._incoming_packet_t0 > self.incoming_packet_timeout:
+        if self.incoming_packet_timeout is not None and self._incoming_packet_t0 != 0 and time.time() - self._incoming_packet_t0 > self.incoming_packet_timeout:
             self._incoming_packet_timed_out();
 
-        if self._response_packet_t0 != 0 and time.time() - self._response_packet_t0 > self.response_packet_timeout:
+        if self.response_packet_timeout is not None and self._response_packet_t0 != 0 and time.time() - self._response_packet_t0 > self.response_packet_timeout:
             self._response_packet_timed_out();
         
     def _on_tx_packet(self, packet):
