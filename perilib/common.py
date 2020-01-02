@@ -9,6 +9,10 @@ class ParseStatus:
     IN_PROGRESS = 2
     COMPLETE = 3
 
+class Order:
+    LITTLE_ENDIAN = 0
+    BIG_ENDIAN = 1
+
 class dotdict(dict):
     """Provides `dot.notation` access to dictionary attributes
 

@@ -53,23 +53,41 @@ class StreamProtocol():
                 length in bytes
         :rtype: dict
         """
-        
-        pack_format = "<"
+
+        pack_format = ""
         expected_length = 0
+        little_endian = False
+        big_endian = False
 
         # build out unpack format string and calculate expected byte count
         for field in fields:
             # use format and length from field type definition
             pack_format += cls.types[field["type"]]["pack"]
             expected_length += cls.types[field["type"]]["width"]
-            
+            if cls.types[field["type"]]["width"] > 1:
+                if "byteorder" in field and field["byteorder"] == Order.BIG_ENDIAN:
+                    big_endian = True
+                else:
+                    little_endian = True
+
             # process types that require special handling
             if field["type"] == "uint8a-fixed":
                 # fixed-width uint8a fields specify their own width
                 pack_format += "%ds" % field["width"]
                 expected_length += field["width"]
 
-        return { "pack_format": pack_format, "expected_length": expected_length }
+        # check byte ordering
+        if big_endian and not little_endian:
+            # life is easy, everything is the same byte order
+            pack_format = ">" + pack_format
+        else:
+            # either all little or mixed (shudder!), so default little
+            pack_format = "<" + pack_format
+
+        # let's very much hope not
+        mixed_endian = (big_endian and little_endian)
+
+        return { "pack_format": pack_format, "expected_length": expected_length, "mixed_endian": mixed_endian }
 
     @classmethod
     def calculate_field_offset(cls, fields, field_name):
@@ -188,6 +206,11 @@ class StreamProtocol():
             raise PerilibProtocolException("Calculated minimum buffer length %d exceeds actual buffer length %d" % (packing_info["expected_length"], len(buffer)))
 
         unpacked = struct.unpack(packing_info["pack_format"], buffer[:packing_info["expected_length"]])
+        unpacked_be = []
+        if packing_info["mixed_endian"]:
+            # unpack it again with big-endian byte ordering (ugh)
+            be_format = ">" + packing_info["pack_format"][1:]
+            unpacked_be = struct.unpack(be_format, buffer[:packing_info["expected_length"]])
         for i, field in enumerate(fields):
             if field["type"] in ["uint8a-l8v", "uint8a-l16v", "uint8a-greedy"]:
                 # use the byte array contained in the rest of the payload
@@ -199,11 +222,17 @@ class StreamProtocol():
                 values[field["name"]] = buffer[packing_info["expected_length"]:]
             elif field["type"] == "macaddr":
                 # special handling for 6-byte MAC address
-                values[field["name"]] = [x for x in unpacked[i]]
+                if "byteorder" in field and field["byteorder"] == Order.BIG_ENDIAN:
+                    values[field["name"]] = list(reversed([x for x in unpacked[i]]))
+                else:
+                    values[field["name"]] = [x for x in unpacked[i]]
             else:
                 # directly use the value extracted during unpacking
-                values[field["name"]] = unpacked[i]
-        
+                if packing_info["mixed_endian"] and "byteorder" in field and field["byteorder"] == Order.BIG_ENDIAN:
+                    values[field["name"]] = unpacked_be[i]
+                else:
+                    values[field["name"]] = unpacked[i]
+
         # done!
         return values
 
