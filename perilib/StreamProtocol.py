@@ -218,7 +218,7 @@ class StreamProtocol():
                     raise PerilibProtocolException(
                         "Specified variable payload length %d does not match actual "
                         "remaining payload length %d"
-                        % (values[field["name"]], len(buffer) - packing_info["expected_length"]))
+                        % (unpacked[i], len(buffer) - packing_info["expected_length"]))
                 values[field["name"]] = buffer[packing_info["expected_length"]:]
             elif field["type"] == "macaddr":
                 # special handling for 6-byte MAC address
