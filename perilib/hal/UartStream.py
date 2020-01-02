@@ -177,7 +177,10 @@ class UartStream(Stream):
         stream closure (expected). In either case, the internal port closure
         status value is updated here, and in the case of an unexpected closure,
         the device disconnection callback is triggered."""
-        
+
+        # mark data stream publicly closed
+        self.is_open = False
+
         if self.on_close_stream is not None:
             # trigger port closure callback
             self.on_close_stream(self)
@@ -193,9 +196,6 @@ class UartStream(Stream):
             finally:
                 # mark port privately closed
                 self._port_open = False
-                
-                # mark data stream publicly closed
-                self.is_open = False
 
                 if self.on_disconnect_device:
                     # trigger application callback
