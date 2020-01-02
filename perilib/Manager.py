@@ -139,7 +139,7 @@ class Manager:
                     ids_to_disconnect.remove(device_id)
                     
                 # apply filter, skip if it doesn't pass
-                if not self.device_filter(device):
+                if self.device_filter is not None and not self.device_filter(device):
                     continue
 
                 # add this device to the list if not already present
