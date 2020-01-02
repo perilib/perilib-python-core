@@ -115,6 +115,7 @@ class UartStream(Stream):
             # check for available data
             if mode in [ProcessMode.SELF, ProcessMode.BOTH] \
                     and self.is_open \
+                    and self.port.is_open \
                     and self.port.in_waiting != 0:
                 # read all available data
                 data = self.port.read(self.port.in_waiting)
