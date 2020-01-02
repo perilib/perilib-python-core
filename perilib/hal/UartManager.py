@@ -60,6 +60,7 @@ class UartManager(Manager):
         super().__init__()
         
         # these attributes may be updated by the application
+        self.port_info_filter = None
         self.device_class = device_class
         self.stream_class = stream_class
         self.parser_generator_class = parser_generator_class
@@ -109,6 +110,10 @@ class UartManager(Manager):
                 connected_devices[port_info.device] = self.devices[port_info.device]
             else:
                 # create new device and stream instance
+
+                # apply filter, skip if it doesn't pass
+                if self.port_info_filter is not None and not self.port_info_filter(port_info):
+                    continue
 
                 # make sure the application provided everything necessary
                 if self.stream_class == None:
