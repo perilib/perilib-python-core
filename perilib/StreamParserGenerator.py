@@ -182,7 +182,7 @@ class StreamParserGenerator:
         # add new data to queue
         self.rx_deque.extend(input_data)
 
-    def parse(self, input_data):
+    def parse(self, input_data, is_tx=False):
         """Parse one or more bytes of incoming data.
         
         :param input_data: Byte buffer to parse immediately
@@ -202,9 +202,9 @@ class StreamParserGenerator:
 
         # input_data here is now a bytes(...) buffer
         for input_byte_as_int in input_data:
-            self.parse_byte(input_byte_as_int)
-            
-    def parse_byte(self, input_byte_as_int):
+            self.parse_byte(input_byte_as_int, is_tx)
+
+    def parse_byte(self, input_byte_as_int, is_tx=False):
         """Parse a byte of data according to the associated protocol definition.
         
         :param input_byte_as_int: Single byte to parse
@@ -279,7 +279,7 @@ class StreamParserGenerator:
 
                 # convert the buffer to a packet
                 try:
-                    self.rx_packet = self.protocol_class.get_packet_from_buffer(self.rx_buffer, self)
+                    self.rx_packet = self.protocol_class.get_packet_from_buffer(self.rx_buffer, self, is_tx)
 
                     # reset the parser
                     self.reset()
