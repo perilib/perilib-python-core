@@ -217,5 +217,7 @@ class Stream:
             run_builtin = self.on_rx_data(data, self)
 
         # derived Stream classes can do special things at this point
-        #if run_builtin != False:
-            # do fun stuff automatically
+        if run_builtin != False:
+            # parse automatically if we have a parser attached
+            if self.parser_generator is not None:
+                self.parser_generator.parse(data)

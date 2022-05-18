@@ -125,8 +125,8 @@ class UartManager(Manager):
                 stream.on_disconnect_device = self._on_disconnect_device # use internal disconnection callback
                 stream.on_open_stream = self.on_open_stream
                 stream.on_close_stream = self.on_close_stream
-                stream.on_rx_data = self._on_rx_data # use internal RX data callback
                 stream.on_open_error = self.on_open_error
+                stream.on_rx_data = self.on_rx_data
                 stream.on_tx_data = self.on_tx_data
                 stream.use_threading = True if (self.threading_flags & Manager.STREAM_THREADING) != 0 else False
 
@@ -201,13 +201,17 @@ class UartManager(Manager):
                     if parser_generator.use_threading:
                         # start the parser/generator monitoring thread
                         self.streams[device.id].parser_generator.start()
-                    
-                # open the data stream
-                self.streams[device.id].open()
 
-                if self.streams[device.id].use_threading:
-                    # start the stream monitoring thread
-                    self.streams[device.id].start()
+                try:
+                    # open the data stream
+                    self.streams[device.id].open()
+
+                    if self.streams[device.id].use_threading:
+                        # start the stream monitoring thread
+                        self.streams[device.id].start()
+                except serial.serialutil.SerialException as e:
+                    # unable to open the port, but don't crash
+                    pass
 
     def _on_disconnect_device(self, device):
         """Handles device disconnections.
@@ -239,30 +243,3 @@ class UartManager(Manager):
         # resume watching if we stopped due to AUTO_OPEN_SINGLE
         if self.use_threading and self.auto_open == UartManager.AUTO_OPEN_SINGLE and len(self.devices) == 0:
             self.start()
-            
-    def _on_rx_data(self, data, stream):
-        """Automatically handles incoming data from a stream.
-        
-        :param data: Data buffer received from the stream
-        :type data: bytes
-
-        :param stream: Stream from which the data was received
-        :type stream: UartStream
-
-        When new data arrives into a serial stream attached to a device under
-        the purview of this manager, this method automatically passes it to the
-        relevant parser/generator object. The application itself could do this,
-        and indeed the RX data callback on the stream can be reassigned so that
-        this method is no longer used, but that partially defeats the purpose of
-        the manager. The default behavior is to let the manager do all of the
-        work so that the application can focus simply on handling and sending
-        packets."""
-
-        run_builtin = True
-        if self.on_rx_data is not None:
-            # trigger the app-level RX data callback
-            run_builtin = self.on_rx_data(data, stream)
-            
-        if run_builtin != False and stream.parser_generator is not None:
-            # add data to parse queue
-            stream.parser_generator.queue(data)
