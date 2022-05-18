@@ -37,6 +37,7 @@ class Stream:
         self.use_threading = False
         self.on_open_stream = None
         self.on_close_stream = None
+        self.on_open_error = None
         self.on_rx_data = None
         self.on_tx_data = None
         self.on_disconnect_device = None

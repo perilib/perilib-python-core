@@ -69,6 +69,7 @@ class UartManager(Manager):
         self.on_disconnect_device = None
         self.on_open_stream = None
         self.on_close_stream = None
+        self.on_open_error = None
         self.on_rx_data = None
         self.on_tx_data = None
         self.on_rx_packet = None
@@ -125,6 +126,7 @@ class UartManager(Manager):
                 stream.on_open_stream = self.on_open_stream
                 stream.on_close_stream = self.on_close_stream
                 stream.on_rx_data = self._on_rx_data # use internal RX data callback
+                stream.on_open_error = self.on_open_error
                 stream.on_tx_data = self.on_tx_data
                 stream.use_threading = True if (self.threading_flags & Manager.STREAM_THREADING) != 0 else False
 

@@ -33,17 +33,24 @@ class UartStream(Stream):
 
         # don't start if we're already running
         if not self.is_open:
-            if not self.port.is_open:
-                self.port.open()
-                self._port_open = True
-            if self.on_open_stream is not None:
-                # trigger application callback
-                self.on_open_stream(self)
-                
-            if self.use_threading:
-                self.start()
-                
-            self.is_open = True
+            try:
+                if not self.port.is_open:
+                    self.port.open()
+                    self._port_open = True
+                if self.on_open_stream is not None:
+                    # trigger application callback
+                    self.on_open_stream(self)
+
+                if self.use_threading:
+                    self.start()
+
+                self.is_open = True
+            except serial.serialutil.SerialException as e:
+                if self.on_open_error is not None:
+                    # trigger application callback
+                    self.on_open_error(self, e)
+
+        return self.is_open
 
     def close(self):
         """Closes the serial stream.
