@@ -63,13 +63,9 @@ class UartStream(Stream):
 
         # don't close if we're not open
         if self.is_open:
-            if self._port_open:
-                self._port_open = False
-                try:
-                    self.port.close()
-                except (OSError, serial.serialutil.SerialException) as e:
-                    pass
-                    
+            # trigger appropriate closure/disconnection callbacks
+            self._cleanup_port_closure()
+
             # stop the RX data monitoring thread (ignored if not running)
             self.stop()
 
@@ -198,12 +194,10 @@ class UartStream(Stream):
                 # might fail due if the underlying port is already closed
                 self.port.close()
             except (OSError, serial.serialutil.SerialException) as e:
-                # silently ignore failures to close the port
-                pass
-            finally:
-                # mark port privately closed
-                self._port_open = False
-
+                # silently ignore failures to close the port, but that means the device is gone
                 if self.on_disconnect_device:
                     # trigger application callback
                     self.on_disconnect_device(self.device)
+            finally:
+                # mark port privately closed
+                self._port_open = False
