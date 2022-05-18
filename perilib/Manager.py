@@ -1,6 +1,7 @@
 import time
 
 from .common import *
+from .Exceptions import *
 
 class Manager:
     """Base manager class to coordinate device connectivity monitoring.
@@ -182,7 +183,7 @@ class Manager:
         device list driven by nothing at all will generate an exception."""
 
         # child class must implement
-        raise perilib_core.PerilibHalException("Child class has not implemented _get_connected_devices() method, cannot use base class stub")
+        raise PerilibHalException("Child class has not implemented _get_connected_devices() method, cannot use base class stub")
 
     def _watch_devices(self):
         """Watches the system for connections and disconnections.

@@ -2,6 +2,7 @@ import struct
 
 from .common import *
 from .Exceptions import *
+from .StreamPacket import *
 
 class StreamProtocol():
     """Generic stream protocol definition.

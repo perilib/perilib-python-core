@@ -1,4 +1,5 @@
 from .common import *
+from .Exceptions import *
 
 class Stream:
     """Base stream class to manage bidirectional data streams.
@@ -77,7 +78,7 @@ class Stream:
         stream driven by nothing at all will generate an exception."""
 
         # child class must implement
-        raise perilib_core.PerilibHalException("Child class has not implemented open() method, cannot use base class stub")
+        raise PerilibHalException("Child class has not implemented open() method, cannot use base class stub")
 
     def close(self):
         """Closes the stream.
@@ -91,7 +92,7 @@ class Stream:
         stream driven by nothing at all will generate an exception."""
 
         # child class must implement
-        raise perilib_core.PerilibHalException("Child class has not implemented close() method, cannot use base class stub")
+        raise PerilibHalException("Child class has not implemented close() method, cannot use base class stub")
 
     def write(self, data):
         """Sends outgoing data to the stream.
@@ -108,7 +109,7 @@ class Stream:
         to a stream driven by nothing at all will generate an exception."""
 
         # child class must implement
-        raise perilib_core.PerilibHalException("Child class has not implemented write() method, cannot use base class stub")
+        raise PerilibHalException("Child class has not implemented write() method, cannot use base class stub")
 
     def start(self):
         """Starts monitoring for incoming data.
@@ -168,7 +169,7 @@ class Stream:
         stream driven by nothing at all will generate an exception."""
 
         # child class must implement
-        raise perilib_core.PerilibHalException("Child class has not implemented process() method, cannot use base class stub")
+        raise PerilibHalException("Child class has not implemented process() method, cannot use base class stub")
 
     def _watch_data(self):
         """Watches the stream for incoming data.
@@ -193,7 +194,7 @@ class Stream:
         on a stream driven by nothing at all will generate an exception."""
 
         # child class must implement
-        raise perilib_core.PerilibHalException("Child class has not implemented _watch_data() method, cannot use base class stub")
+        raise PerilibHalException("Child class has not implemented _watch_data() method, cannot use base class stub")
 
     def _on_rx_data(self, data):
         """Handles incoming data.
