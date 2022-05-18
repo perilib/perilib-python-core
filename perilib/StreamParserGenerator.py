@@ -203,8 +203,12 @@ class StreamParserGenerator:
             input_data = bytes(input_data)
 
         # input_data here is now a bytes(...) buffer
+        result = None
         for input_byte_as_int in input_data:
-            self.parse_byte(input_byte_as_int, is_tx)
+            result = self.parse_byte(input_byte_as_int, is_tx)
+
+        # send back the last result (useful for parsing complete packets)
+        return result
 
     def parse_byte(self, input_byte_as_int, is_tx=False):
         """Parse a byte of data according to the associated protocol definition.
@@ -303,6 +307,9 @@ class StreamParserGenerator:
                             self.packet_pending = None
                             self._wait_timed_out = False
                             self._wait_packet_event.set()
+
+                        # just completed a packet, so return it
+                        return self.last_rx_packet
                 except PerilibProtocolException as e:
                     if self.on_rx_error is not None:
                         self.on_rx_error(e, self.rx_buffer, self)
@@ -312,6 +319,9 @@ class StreamParserGenerator:
         else:
             # still idle after parsing a byte, probably malformed/junk data
             self.reset()
+
+        # if we haven't already returned, we have nothing to return
+        return None
 
     def generate(self, _packet_name, **kwargs):
         """Create a packet from a name and argument dictionary.
