@@ -383,4 +383,4 @@ class StreamProtocol():
 
         raise PerilibProtocolException(
                 "Cannot generate '%s' packet using base StreamProtocol method, "
-                "no definitions available", _packet_name)
+                "no definitions available" % _packet_name)
