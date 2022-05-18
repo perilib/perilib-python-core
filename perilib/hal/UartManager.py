@@ -75,7 +75,7 @@ class UartManager(Manager):
         self.on_tx_packet = None
         self.on_rx_error = None
         self.on_incoming_packet_timeout = None
-        self.on_response_packet_timeout = None
+        self.on_waiting_packet_timeout = None
         self.auto_open = UartManager.AUTO_OPEN_NONE
 
         # these attributes are intended to be read-only
@@ -192,7 +192,7 @@ class UartManager(Manager):
                     parser_generator.on_tx_packet = self.on_tx_packet
                     parser_generator.on_rx_error = self.on_rx_error
                     parser_generator.on_incoming_packet_timeout = self.on_incoming_packet_timeout
-                    parser_generator.on_response_packet_timeout = self.on_response_packet_timeout
+                    parser_generator.on_waiting_packet_timeout = self.on_waiting_packet_timeout
                     parser_generator.use_threading = True if (self.threading_flags & Manager.PARSER_THREADING) != 0 else False
                     self.streams[device.id].parser_generator = parser_generator
 

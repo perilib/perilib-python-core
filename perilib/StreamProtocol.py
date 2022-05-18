@@ -34,7 +34,7 @@ class StreamProtocol():
     }
 
     incoming_packet_timeout = None
-    response_packet_timeout = None
+    waiting_packet_timeout = None
 
     backspace_bytes = None
     terminal_bytes = None
