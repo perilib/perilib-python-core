@@ -7,14 +7,14 @@ from ..StreamProtocol import *
 
 class UartManager(Manager):
     """Serial device manager for abstracting stream and parser management.
-    
+
     This class implements a comprehensive management layer on top of devices,
     streams, protocols, and parser/generator instances. While parent application
     code can manage these things independently, this code wraps everything into
     a single interface to handle filtered device connection monitoring, data
     stream control, packet parsing based on an externally defined protocol, and
     various types of error detection.
-    
+
     For many applications, the manager layer is the only one that will have to
     be configured during initialization, and all lower-level interaction can be
     left to the manager instance."""
@@ -29,7 +29,7 @@ class UartManager(Manager):
             parser_generator_class=StreamParserGenerator,
             protocol_class=StreamProtocol):
         """Initializes a serial manager instance.
-        
+
         :param device_class: Class to use when instantiating new device objects
             upon connection
         :type device_class: SerialDevice
@@ -51,14 +51,14 @@ class UartManager(Manager):
         handles monitoring device connections and disconnections, especially in
         the case of USB devices that may be inserted or unplugged at any time.
         This is done using PySerial as a driver for device detection.
-        
+
         Unlike most of the overridden methods in this child class, this one runs
         the parent (super) class method first.
         """
 
         # run parent constructor
         super().__init__()
-        
+
         # these attributes may be updated by the application
         self.port_info_filter = None
         self.device_class = device_class
@@ -80,13 +80,13 @@ class UartManager(Manager):
 
         # these attributes are intended to be read-only
         self.streams = {}
-        
+
         # these attributes are intended to be private
         self._recently_disconnected_devices = []
-        
+
     def _get_connected_devices(self):
         """Gets a list of all currently connected serial devices.
-        
+
         :returns: Dictionary of connected devices (keys are device names)
         :rtype: dict
 
@@ -135,23 +135,23 @@ class UartManager(Manager):
 
                 # create device with stream attached
                 device = self.device_class(port_info.device, stream)
-                
+
                 # add reference from stream back up to device for convenience
                 stream.device = device
-                
+
                 # add device and stream to internal tables for management
                 self.streams[port_info.device] = stream
                 connected_devices[port_info.device] = device
-                
+
         # clean out list of recently disconnected devices
         del self._recently_disconnected_devices[:]
-        
+
         # send back the list of currently connected devices
         return connected_devices
-        
+
     def _on_connect_device(self, device):
         """Handles serial device connections.
-        
+
         :param device: Device that has just been connected
         :type device: SerialDevice
 
@@ -178,7 +178,7 @@ class UartManager(Manager):
                 if len(self.devices) == 1:
                     # open this stream only (first connected device)
                     open_stream = True
-                    
+
                     if self.use_threading:
                         # stop port change monitor thread
                         # (NOTE: data monitor itself catches disconnection)
@@ -195,7 +195,7 @@ class UartManager(Manager):
                     parser_generator.on_response_packet_timeout = self.on_response_packet_timeout
                     parser_generator.use_threading = True if (self.threading_flags & Manager.PARSER_THREADING) != 0 else False
                     self.streams[device.id].parser_generator = parser_generator
-                
+
                     if parser_generator.use_threading:
                         # start the parser/generator monitoring thread
                         self.streams[device.id].parser_generator.start()
@@ -209,7 +209,7 @@ class UartManager(Manager):
 
     def _on_disconnect_device(self, device):
         """Handles device disconnections.
-        
+
         :param device: Device that has just been disconnected
         :type device: SerialDevice
 

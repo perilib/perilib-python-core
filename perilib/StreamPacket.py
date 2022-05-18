@@ -2,7 +2,7 @@ from .StreamProtocol import *
 
 class StreamPacket():
     """Generic stream packet definition.
-    
+
     This class represents a single packet in a stream-based protocol. It may be
     either an incoming or outgoing packet, and may be created either from a byte
     buffer (typically from from incoming data) or from a dictionary of payload
@@ -16,7 +16,7 @@ class StreamPacket():
 
     def __init__(self, type=TYPE_GENERIC, name=None, definition=None, buffer=None, header=None, payload=None, footer=None, metadata=None, parser_generator=None):
         """Creates a new stream packet instance.
-        
+
         :param type: Packet type
         :type type: int
 
@@ -51,14 +51,14 @@ class StreamPacket():
         is mapped to a packet name and argument dictionary for processing) or
         from a packet name and argument dictionary (which is converted into a
         binary buffer ready for transmission).
-        
+
         In both of these cases, the structural definition of the packet must be
         supplied as well, or no conversion can occur. It is assumed that the
         caller will already have identified the right entry in the relevant
         protocol class, and will then pass this along (with any required packet-
         specific modifications) in the `definition` argument.
         """
-        
+
         self.type = type
         self.name = name
         self.definition = definition
@@ -68,12 +68,12 @@ class StreamPacket():
         self.footer = footer
         self.metadata = metadata
         self.parser_generator = parser_generator
-        
+
         if self.definition is not None:
             if self.name is None and "name" in self.definition:
                 # use name from packet definition
                 self.name = self.definition["name"]
-            
+
             # build whatever side of the packet is still missing
             if self.buffer is not None:
                 self.build_structure_from_buffer()
@@ -82,19 +82,19 @@ class StreamPacket():
 
     def __getitem__(self, arg):
         """Convenience accessor for payload arguments.
-        
+
         :param arg: Name of the payload argument to get
         :type arg: str
 
         With this method, you can directly read payload entries without
         explicitly using the `.payload` attribute, but rather using the packet
         object itself as a dictionary."""
-        
+
         return self.payload[arg]
 
     def __str__(self):
         """Generates the string representation of the device.
-        
+
         This implementation displays the packet name, type, payload details, and
         stream source (if available). It provides a good foundation for quick
         console displays or debugging information. Raw binary structure is not
@@ -119,7 +119,7 @@ class StreamPacket():
 
     def build_structure_from_buffer(self):
         """Fills packet structure data based on a byte buffer and definition.
-        
+
         This method uses the already-stored packet definition and binary byte
         buffer to unpack the contents into a dictionary, including (where
         necessary) header and footer information. The definition and byte
@@ -127,7 +127,7 @@ class StreamPacket():
         class constructor automatically calls this method if both a definition
         and byte buffer are supplied when instantiating a new packet, but you
         can also call it by hand afterwards if necessary."""
-        
+
         # header (optional)
         if "header_args" in self.definition:
             header_packing_info = StreamProtocol.calculate_packing_info(self.definition["header_args"])
@@ -140,7 +140,7 @@ class StreamPacket():
         else:
             self.header = {}
             header_expected_length = 0
-            
+
         # footer (optional)
         if "footer_args" in self.definition:
             footer_packing_info = StreamProtocol.calculate_packing_info(self.definition["footer_args"])
@@ -162,7 +162,7 @@ class StreamPacket():
 
     def build_buffer_from_structure(self):
         """Generates a binary buffer based on a dictionary and definition.
-        
+
         This method uses the already-stored packet definition and argument
         dictionary to create a byte buffer representing the payload of a packet,
         ready for transmission using a stream object. Note that many protocols
@@ -186,11 +186,11 @@ class StreamPacket():
 
     def prepare_buffer_after_building(self):
         """Perform final modifications to buffer after packing the payload.
-        
+
         Protocols that require a header (e.g. type/length data) and/or footer
         (e.g. CRC data) can override this method to prepend/append or otherwise
         modify data in the packet buffer before the dictionary-to-byte-array
         conversion process is considered to be complete. The stub implementation
         in this base class simply does nothing."""
-        
+
         pass

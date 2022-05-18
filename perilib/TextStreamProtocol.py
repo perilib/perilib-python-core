@@ -3,7 +3,7 @@ from .StreamProtocol import *
 from .StreamPacket import *
 
 class TextStreamProtocol(StreamProtocol):
-    
+
     backspace_bytes = [0x08, 0x7F]
     terminal_bytes = [0x0A]
     trim_bytes = [0x0A, 0x0D]
@@ -16,5 +16,5 @@ class TextStreamProtocol(StreamProtocol):
                 { "name": "text", "type": "uint8a-greedy" }
             ]
         }
-        
+
         return StreamPacket(buffer=buffer, definition=definition, parser_generator=parser_generator)

@@ -5,7 +5,7 @@ from .Exceptions import *
 
 class StreamProtocol():
     """Generic stream protocol definition.
-    
+
     This class provides a foundation for stream-based protocols, including stub
     methods required to detect packet boundaries and instantiate new packet
     instances from incoming data. Without subclassing, this considers every new
@@ -13,7 +13,7 @@ class StreamProtocol():
     case. You will most likely need to implement a subclass with more specific
     boundary detection (at the very least) suitable to the specific protocol
     that is being used.
-    
+
     It also contains attributes and methods capable of describing, packing, and
     unpacking binary data to and from byte buffers. Further detail and
     transport-specific processing are left to subclasses."""
@@ -35,7 +35,7 @@ class StreamProtocol():
 
     incoming_packet_timeout = None
     response_packet_timeout = None
-    
+
     backspace_bytes = None
     terminal_bytes = None
     trim_bytes = None
@@ -44,7 +44,7 @@ class StreamProtocol():
     def calculate_packing_info(cls, fields):
         """Build a struct.pack format string and calculate expected data length
         based on field definitions.
-        
+
         :param fields: A list containing field definitions describing the
                 packing structure
         :type fields: list
@@ -93,18 +93,18 @@ class StreamProtocol():
     def calculate_field_offset(cls, fields, field_name):
         """Determine the byte offset for a specific field within a packed byte
         buffer.
-        
+
         :param fields: A list containing field definitions describing the
                 packing structure
         :type fields: list
-        
+
         :param field_name: Specific field for which to calculate the offset
         :type field_name: str
-        
+
         :returns: Byte offset for supplied field, or None if not found
         :rtype: int
         """
-        
+
         offset = 0
         for field in fields:
             if field["name"] == field_name:
@@ -113,19 +113,19 @@ class StreamProtocol():
             else:
                 # not found yet, so add this width to the running offset
                 offset += cls.types[field["type"]]["width"]
-                
+
                 # process types that require special handling
                 if field["type"] == "uint8a-fixed":
                     # fixed-width uint8a fields specify their own width
                     offset += field["width"]
-        
+
         # not found
         return None
 
     @classmethod
     def pack_values(cls, values, fields, packing_info=None):
         """Pack a dictionary into a binary buffer based on field definitions.
-        
+
         :param values: A list containing values to be packed according to the
                 supplied field definition list
         :type fields: list
@@ -145,7 +145,7 @@ class StreamProtocol():
         part of the process. It is allowed to be sent as an argument because
         some external methods require access to it for pre-processing, and so
         it would be a waste to force the calculation twice."""
-        
+
         if packing_info is None:
             packing_info = cls.calculate_packing_info(fields)
 
@@ -171,11 +171,11 @@ class StreamProtocol():
 
         # pack all arguments into binary buffer
         return struct.pack(packing_info["pack_format"], *value_list)
-        
+
     @classmethod
     def unpack_values(cls, buffer, fields, packing_info=None):
         """Unpack a binary buffer into a dictionary based on field definitions.
-        
+
         :param buffer: A byte buffer to be unpacked into a dictionary based on
                 the supplied field definition list
         :type buffer: bytes
@@ -197,10 +197,10 @@ class StreamProtocol():
         it would be a waste to force the calculation twice."""
 
         values = dotdict()
-        
+
         if packing_info is None:
             packing_info = cls.calculate_packing_info(fields)
-        
+
         # make sure calculated lengths are sane
         if packing_info["expected_length"] > len(buffer):
             raise PerilibProtocolException("Calculated minimum buffer length %d exceeds actual buffer length %d" % (packing_info["expected_length"], len(buffer)))
@@ -239,7 +239,7 @@ class StreamProtocol():
     @classmethod
     def test_packet_start(cls, buffer, is_tx=False):
         """Test whether a packet has started.
-        
+
         :param buffer: Current data buffer
         :type buffer: bytes
 
@@ -251,22 +251,22 @@ class StreamProtocol():
         more complex test based on the contents of the `buffer` argument (which
         is a `bytes` object). The default implementation here assumes that any
         data received is the beginning of a new packet.
-        
+
         Available return values are STATUS_IN_PROGRESS to indicate that the
         packet has started, STATUS_STARTING to indicate that additional bytes
         are necessary before knowing for sure that the packet has started, and
         STATUS_IDLE to indicate that no packet has started and the parser should
         return to an idle state.
-        
+
         This class method is called automatically by the parser/generator object
         when new data is received and passed to the parse method."""
-        
+
         return ParseStatus.IN_PROGRESS
 
     @classmethod
     def test_packet_complete(cls, buffer, is_tx=False):
         """Test whether a packet has finished.
-        
+
         :param buffer: Current data buffer (not including new byte)
         :type buffer: bytes
 
@@ -280,21 +280,21 @@ class StreamProtocol():
         overridden to check whatever conditions are necessary against on the
         contents of the `buffer` argument (which is a `bytes` object). The
         default implementation here assumes any data is the end of a new packet.
-        
+
         NOTE: in combination with the default start test condition, this means
         that each individual byte received is treated as a complete packet. This
         is ALMOST CERTAINLY not what you want, so one or both of these methods
         should be overridden with specific conditions for real protocols.
-        
+
         Suitable return values are STATUS_IN_PROGRESS to indicate that the
         packet is not yet finished, STATUS_COMPLETE to indicate that the packet
         is complete and valid and should be processed, and STATUS_IDLE to
         indicate that the previously in-progresss packet has failed validation
         of some type and data should be dropped.
-        
+
         This class method is called automatically by the parser/generator object
         when new data is received and passed to the parse method."""
-        
+
         # check for simple byte-based terminal condition
         if cls.terminal_bytes is not None and len(cls.terminal_bytes) > 0:
             # check for a byte match
@@ -312,7 +312,7 @@ class StreamProtocol():
     @classmethod
     def get_packet_from_buffer(cls, buffer, parser_generator=None, is_tx=False):
         """Generates a packet object from a binary buffer.
-        
+
         :param buffer: Data buffer from which to create a packet object
         :type buffer: bytes
 
@@ -331,13 +331,13 @@ class StreamProtocol():
         in case the direction of data flow is itself an indicator of the type of
         packet, e.g. a command vs. response packet which structurally look the
         same but must be one or the other based on which device sent the packet.
-        
+
         The parser/generator object is also provided in case some specific state
         information maintained by this object is required in order to correctly
         identify the packet.
-        
+
         This method must do the following:
-        
+
         1. Identify the correct packet definition based on the binary content
         2. Unpack all of the binary data into a dictionary
         3. Validate the dictionary contents (argument data) based on the packet
@@ -347,13 +347,13 @@ class StreamProtocol():
         content, but simply creates a packet instance directly without any
         special processing. In virtually every real use case, child classes
         *will* need to override this implementation."""
-        
+
         return StreamPacket(buffer=buffer, parser_generator=parser_generator)
 
     @classmethod
     def get_packet_from_name_and_args(cls, _packet_name, _parser_generator=None, **kwargs):
         """Generates a packet object from a name and argument dictionary.
-        
+
         :param _packet_name: Name of the packet to search for
         :type _packet_name: str
 
@@ -369,18 +369,18 @@ class StreamProtocol():
         to the `send_packet()` or `send_and_wait()` method. The `kwargs`
         dictionary contains the named packet arguments which must be converted
         into a packed binary structure (if any are required).
-        
+
         This method must do the following:
-        
+
         1. Identify the correct packet definition based on the supplied name
         2. Validate the supplied arguments based on the packet definition
         3. Pack all of the arguments into a binary buffer (`bytes()` object)
-        
+
         Child classes must override this method since this process requires a
         custom protocol definition to work with, e.g. a list containing packet
         structures and argument names/types for each packet, and this is not
         available in the base class."""
-        
+
         raise PerilibProtocolException(
                 "Cannot generate '%s' packet using base StreamProtocol method, "
                 "no definitions available", _packet_name)
