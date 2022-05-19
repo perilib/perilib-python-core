@@ -346,9 +346,16 @@ class StreamProtocol():
         This default implementation does not assume anything about the buffer
         content, but simply creates a packet instance directly without any
         special processing. In virtually every real use case, child classes
-        *will* need to override this implementation."""
+        *will* need to override this implementation.
 
-        return StreamPacket(buffer=buffer, parser_generator=parser_generator)
+        Child classes must override this method since this process requires a
+        custom protocol definition to work with, e.g. a list containing packet
+        structures and argument names/types for each packet, and this is not
+        available in the base class."""
+
+        raise PerilibProtocolException(
+                "Cannot generate packet from buffer using base StreamProtocol "
+                "method, no definitions available")
 
     @classmethod
     def get_packet_from_name_and_args(cls, _packet_name, _parser_generator=None, **kwargs) -> object:
