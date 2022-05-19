@@ -61,7 +61,7 @@ class Stream:
 
         return str(self.device)
 
-    def open(self):
+    def open(self) -> bool:
         """Opens the stream.
 
         For example, a stream using PySerial as the underlying driver would use
@@ -75,7 +75,7 @@ class Stream:
         # child class must implement
         raise PerilibHalException("Child class has not implemented open() method, cannot use base class stub")
 
-    def close(self):
+    def close(self) -> bool:
         """Closes the stream.
 
         For example, a stream using PySerial as the underlying driver would use
@@ -89,11 +89,14 @@ class Stream:
         # child class must implement
         raise PerilibHalException("Child class has not implemented close() method, cannot use base class stub")
 
-    def write(self, data):
+    def write(self, data) -> int:
         """Sends outgoing data to the stream.
 
         :param data: Data buffer to be sent out to the stream
         :type data: bytes
+
+        :returns: Number of bytes written to the stream
+        :rtype: int
 
         For example, a stream using PySerial as the underlying driver would use
         the `write()` method on the serial port object whenever this method is
@@ -106,7 +109,7 @@ class Stream:
         # child class must implement
         raise PerilibHalException("Child class has not implemented write() method, cannot use base class stub")
 
-    def process(self, mode=ProcessMode.BOTH, force=False):
+    def process(self, mode=ProcessMode.BOTH, force=False) -> None:
         """Handle any pending events or data waiting to be processed.
 
         :param mode: Processing mode defining whether to run for this object,
@@ -129,8 +132,7 @@ class Stream:
         # child class must implement
         raise PerilibHalException("Child class has not implemented process() method, cannot use base class stub")
 
-
-    def _on_rx_data(self, data):
+    def _on_rx_data(self, data) -> None:
         """Handles incoming data.
 
         :param data: Data buffer that has just been received

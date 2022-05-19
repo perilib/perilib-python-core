@@ -39,7 +39,7 @@ class Manager:
         # these attributes are intended to be private
         self._last_process_time = 0
 
-    def process(self, mode=ProcessMode.BOTH, force=False):
+    def process(self, mode=ProcessMode.BOTH, force=False) -> None:
         """Handle any pending events or data waiting to be processed.
 
         :param mode: Processing mode defining whether to run for this object,
@@ -100,8 +100,8 @@ class Manager:
             for device_id in list(self.devices.keys()):
                 self.devices[device_id].process(mode=ProcessMode.BOTH, force=force)
 
-    def _get_connected_devices(self):
-        """Gets a list of all currently connected devices.
+    def _get_connected_devices(self) -> dict:
+        """Gets a collection of all currently connected devices.
 
         :returns: Dictionary of connected devices (keys are device names)
         :rtype: dict
@@ -117,8 +117,7 @@ class Manager:
         # child class must implement
         raise PerilibHalException("Child class has not implemented _get_connected_devices() method, cannot use base class stub")
 
-
-    def _on_connect_device(self, device):
+    def _on_connect_device(self, device) -> None:
         """Handles device connections.
 
         :param device: Device that has just been connected
@@ -142,7 +141,7 @@ class Manager:
         #if run_builtin != False:
             # do fun stuff automatically
 
-    def _on_disconnect_device(self, device):
+    def _on_disconnect_device(self, device) -> None:
         """Handles device disconnections.
 
         :param device: Device that has just been disconnected

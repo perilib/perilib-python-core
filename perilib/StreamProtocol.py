@@ -2,7 +2,6 @@ import struct
 
 from .common import *
 from .Exceptions import *
-from .StreamPacket import *
 
 class StreamProtocol():
     """Generic stream protocol definition.
@@ -42,7 +41,7 @@ class StreamProtocol():
     trim_bytes = None
 
     @classmethod
-    def calculate_packing_info(cls, fields):
+    def calculate_packing_info(cls, fields) -> dict:
         """Build a struct.pack format string and calculate expected data length
         based on field definitions.
 
@@ -91,7 +90,7 @@ class StreamProtocol():
         return { "pack_format": pack_format, "expected_length": expected_length, "mixed_endian": mixed_endian }
 
     @classmethod
-    def calculate_field_offset(cls, fields, field_name):
+    def calculate_field_offset(cls, fields, field_name) -> int:
         """Determine the byte offset for a specific field within a packed byte
         buffer.
 
@@ -124,7 +123,7 @@ class StreamProtocol():
         return None
 
     @classmethod
-    def pack_values(cls, values, fields, packing_info=None):
+    def pack_values(cls, values, fields, packing_info=None) -> bytes:
         """Pack a dictionary into a binary buffer based on field definitions.
 
         :param values: A list containing values to be packed according to the
@@ -174,7 +173,7 @@ class StreamProtocol():
         return struct.pack(packing_info["pack_format"], *value_list)
 
     @classmethod
-    def unpack_values(cls, buffer, fields, packing_info=None):
+    def unpack_values(cls, buffer, fields, packing_info=None) -> dict:
         """Unpack a binary buffer into a dictionary based on field definitions.
 
         :param buffer: A byte buffer to be unpacked into a dictionary based on
@@ -238,7 +237,7 @@ class StreamProtocol():
         return values
 
     @classmethod
-    def test_packet_start(cls, buffer, is_tx=False):
+    def test_packet_start(cls, buffer, is_tx=False) -> ParseStatus:
         """Test whether a packet has started.
 
         :param buffer: Current data buffer
@@ -265,7 +264,7 @@ class StreamProtocol():
         return ParseStatus.IN_PROGRESS
 
     @classmethod
-    def test_packet_complete(cls, buffer, is_tx=False):
+    def test_packet_complete(cls, buffer, is_tx=False) -> ParseStatus:
         """Test whether a packet has finished.
 
         :param buffer: Current data buffer (not including new byte)
@@ -311,7 +310,7 @@ class StreamProtocol():
         return ParseStatus.COMPLETE
 
     @classmethod
-    def get_packet_from_buffer(cls, buffer, parser_generator=None, is_tx=False):
+    def get_packet_from_buffer(cls, buffer, parser_generator=None, is_tx=False) -> object:
         """Generates a packet object from a binary buffer.
 
         :param buffer: Data buffer from which to create a packet object
@@ -352,7 +351,7 @@ class StreamProtocol():
         return StreamPacket(buffer=buffer, parser_generator=parser_generator)
 
     @classmethod
-    def get_packet_from_name_and_args(cls, _packet_name, _parser_generator=None, **kwargs):
+    def get_packet_from_name_and_args(cls, _packet_name, _parser_generator=None, **kwargs) -> object:
         """Generates a packet object from a name and argument dictionary.
 
         :param _packet_name: Name of the packet to search for

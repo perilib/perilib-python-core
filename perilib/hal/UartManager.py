@@ -85,8 +85,8 @@ class UartManager(Manager):
         # these attributes are intended to be private
         self._recently_disconnected_devices = []
 
-    def _get_connected_devices(self):
-        """Gets a list of all currently connected serial devices.
+    def _get_connected_devices(self) -> dict:
+        """Gets a collection of all currently connected serial devices.
 
         :returns: Dictionary of connected devices (keys are device names)
         :rtype: dict
@@ -150,7 +150,7 @@ class UartManager(Manager):
         # send back the list of currently connected devices
         return connected_devices
 
-    def _on_connect_device(self, device):
+    def _on_connect_device(self, device) -> None:
         """Handles serial device connections.
 
         :param device: Device that has just been connected
@@ -198,7 +198,7 @@ class UartManager(Manager):
                     # unable to open the port, but don't crash
                     pass
 
-    def _on_disconnect_device(self, device):
+    def _on_disconnect_device(self, device) -> None:
         """Handles device disconnections.
 
         :param device: Device that has just been disconnected

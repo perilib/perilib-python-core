@@ -117,7 +117,7 @@ class StreamPacket():
             s += " via unidentified stream"
         return s
 
-    def build_structure_from_buffer(self):
+    def build_structure_from_buffer(self) -> None:
         """Fills packet structure data based on a byte buffer and definition.
 
         This method uses the already-stored packet definition and binary byte
@@ -160,7 +160,7 @@ class StreamPacket():
                 self.definition[self.TYPE_ARG_CONTEXT[self.type]],
                 payload_packing_info)
 
-    def build_buffer_from_structure(self):
+    def build_buffer_from_structure(self) -> None:
         """Generates a binary buffer based on a dictionary and definition.
 
         This method uses the already-stored packet definition and argument
@@ -184,7 +184,7 @@ class StreamPacket():
         # (easier to re-implement just that instead of this whole method)
         self.prepare_buffer_after_building()
 
-    def prepare_buffer_after_building(self):
+    def prepare_buffer_after_building(self) -> None:
         """Perform final modifications to buffer after packing the payload.
 
         Protocols that require a header (e.g. type/length data) and/or footer

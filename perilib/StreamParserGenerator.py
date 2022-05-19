@@ -3,6 +3,7 @@ import time
 
 from .Exceptions import *
 from .StreamProtocol import *
+from .StreamPacket import *
 
 class StreamParserGenerator:
     """Parser/generator class for stream-based protocols.
@@ -84,7 +85,7 @@ class StreamParserGenerator:
         else:
             return "par/gen on unidentified stream"
 
-    def reset(self):
+    def reset(self) -> None:
         """Resets the parser to an idle/empty state.
 
         After a packet is parsed successfully, or if a partial packet fails to
@@ -100,7 +101,7 @@ class StreamParserGenerator:
         self.parser_status = ParseStatus.IDLE
         self._incoming_packet_t0 = 0
 
-    def queue(self, input_data):
+    def queue(self, input_data) -> int:
         """Add data to the RX queue for later processing.
 
         :param input_data: Byte buffer to append to the parse queue
@@ -126,8 +127,9 @@ class StreamParserGenerator:
 
         # add new data to queue
         self.rx_deque.extend(input_data)
+        return self.rx_deque.count()
 
-    def parse(self, input_data, is_tx=False):
+    def parse(self, input_data, is_tx=False) -> StreamPacket:
         """Parse one or more bytes of incoming data.
 
         :param input_data: Byte buffer to parse immediately
@@ -153,7 +155,7 @@ class StreamParserGenerator:
         # send back the last result (useful for parsing complete packets)
         return result
 
-    def parse_byte(self, input_byte_as_int, is_tx=False):
+    def parse_byte(self, input_byte_as_int, is_tx=False) -> StreamPacket:
         """Parse a byte of data according to the associated protocol definition.
 
         :param input_byte_as_int: Single byte to parse
@@ -266,7 +268,7 @@ class StreamParserGenerator:
         # if we haven't already returned, we have nothing to return
         return None
 
-    def generate(self, _packet_name, **kwargs):
+    def generate(self, _packet_name, **kwargs) -> StreamPacket:
         """Create a packet from a name and argument dictionary.
 
         :param _packet_name: Name of packet to create
@@ -282,7 +284,7 @@ class StreamParserGenerator:
         # args are prefixed with '_' to avoid unlikely collision with kwargs key
         return self.protocol_class.get_packet_from_name_and_args(_packet_name, self, **kwargs)
 
-    def send_packet(self, _packet_name, **kwargs):
+    def send_packet(self, _packet_name, **kwargs) -> int:
         """Send a packet out via an associated stream.
 
         :param _packet_name: Name of packet to create and transmit
@@ -312,7 +314,7 @@ class StreamParserGenerator:
 
         return result
 
-    def wait_packet(self, _packet_name=None, timeout=None):
+    def wait_packet(self, _packet_name=None, timeout=None) -> StreamPacket:
         """Block until a specific packet arrives, or times out.
 
         :param _packet_name: Name of packet to wait for (if required)
@@ -369,7 +371,7 @@ class StreamParserGenerator:
         # return the last packet received, or None if we timed out
         return self.last_pending_packet if not self._wait_timed_out else None
 
-    def send_and_wait(self, _packet_name, **kwargs):
+    def send_and_wait(self, _packet_name, **kwargs) -> StreamPacket:
         """Send a packet and wait for a response.
 
         :param _packet_name: Name of packet to wait for (if required)
@@ -384,7 +386,7 @@ class StreamParserGenerator:
             result = self.wait_packet()
         return result
 
-    def process(self, mode=ProcessMode.BOTH, force=False):
+    def process(self, mode=ProcessMode.BOTH, force=False) -> None:
         """Handle any pending events or data waiting to be processed.
 
         :param mode: Processing mode defining whether to run for this object,
@@ -410,7 +412,7 @@ class StreamParserGenerator:
         if self._use_waiting_packet_timeout is not None and self._waiting_packet_t0 != 0 and time.time() - self._waiting_packet_t0 > self._use_waiting_packet_timeout:
             self._response_packet_timed_out();
 
-    def _on_tx_packet(self, packet):
+    def _on_tx_packet(self, packet) -> None:
         """Internal callback for when a packet is transmitted.
 
         :param packet: Packet that is about to be transmitted
@@ -424,7 +426,7 @@ class StreamParserGenerator:
             # trigger application callback
             self.on_tx_packet(packet)
 
-    def _incoming_packet_timed_out(self):
+    def _incoming_packet_timed_out(self) -> None:
         """Internal callback for when an incoming packet times out.
 
         If an incoming packet times out, the parser is reset to a fresh state
@@ -442,7 +444,7 @@ class StreamParserGenerator:
         # reset the parser
         self.reset()
 
-    def _response_packet_timed_out(self):
+    def _response_packet_timed_out(self) -> None:
         """Internal callback for when a pending response packet times out.
 
         If a transmitted packet requires a response, this callback will be

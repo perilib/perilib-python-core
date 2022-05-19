@@ -21,7 +21,7 @@ class UartStream(Stream):
 
         return self.port_info.device if self.port_info is not None else "unidentified stream"
 
-    def open(self):
+    def open(self) -> bool:
         """Opens the serial stream.
 
         :returns: Status of open attempt
@@ -47,7 +47,7 @@ class UartStream(Stream):
 
         return self.is_open
 
-    def close(self):
+    def close(self) -> bool:
         """Closes the serial stream.
 
         :returns: Status of close attempt
@@ -64,7 +64,7 @@ class UartStream(Stream):
         # already closed if we got here
         return False
 
-    def write(self, data):
+    def write(self, data) -> int:
         """Writes data to the serial stream.
 
         :param data: Data buffer to be sent out to the stream
@@ -88,7 +88,7 @@ class UartStream(Stream):
 
         return result
 
-    def process(self, mode=ProcessMode.BOTH, force=False):
+    def process(self, mode=ProcessMode.BOTH, force=False) -> None:
         """Handle any pending events or data waiting to be processed.
 
         :param mode: Processing mode defining whether to run for this object,
@@ -127,8 +127,7 @@ class UartStream(Stream):
             # trigger appropriate closure/disconnection callbacks
             self._cleanup_port_closure()
 
-
-    def _cleanup_port_closure(self):
+    def _cleanup_port_closure(self) -> None:
         """Handle a closed port cleanly.
 
         A serial port may close due to device removal (unexpected) or due to

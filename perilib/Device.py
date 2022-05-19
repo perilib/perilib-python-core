@@ -30,7 +30,7 @@ class Device:
 
         return str(self.id)
 
-    def process(self, mode=ProcessMode.BOTH, force=False):
+    def process(self, mode=ProcessMode.BOTH, force=False) -> None:
         """Handle any pending events or data waiting to be processed.
 
         :param mode: Processing mode defining whether to run for this object,
