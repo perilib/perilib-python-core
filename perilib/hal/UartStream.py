@@ -1,6 +1,5 @@
 import serial
 import serial.tools.list_ports
-import threading
 
 from ..Stream import *
 #from ..StreamDevice import *
@@ -11,9 +10,7 @@ class UartStream(Stream):
     """Serial stream class providing a bidirectional data stream to a serial device.
 
     This class allows reading to and writing from a serial device, using PySerial
-    as the low-level driver. It also provides a thread-based non-blocking RX data
-    monitor and callback mechanism, which allows painless integration into even
-    the most complex parent application logic."""
+    as the low-level driver."""
 
     def __str__(self):
         """Generates the string representation of the serial stream.
@@ -27,9 +24,10 @@ class UartStream(Stream):
     def open(self):
         """Opens the serial stream.
 
-        This opens the serial port if it is not already open, and starts an
-        incoming data monitor thread to capture data from the port. This thread
-        continues as long as the stream (port) remains open."""
+        :returns: Status of open attempt
+        :rtype: bool
+
+        This opens the serial port if it is not already open."""
 
         # don't start if we're already running
         if not self.is_open:
@@ -40,9 +38,6 @@ class UartStream(Stream):
                 if self.on_open_stream is not None:
                     # trigger application callback
                     self.on_open_stream(self)
-
-                if self.use_threading:
-                    self.start()
 
                 self.is_open = True
             except serial.serialutil.SerialException as e:
@@ -55,19 +50,19 @@ class UartStream(Stream):
     def close(self):
         """Closes the serial stream.
 
-        This closes the serial port if it is currently open, and stops the
-        incoming data monitor thread. Note that this method does *not* directly
-        trigger the application-level stream closure callback (if assigned), but
-        instead waits for the thread to catch the closure flag and finish its
-        own execution (which triggers the callback)."""
+        :returns: Status of close attempt
+        :rtype: bool
+
+        This closes the serial port if it is currently open."""
 
         # don't close if we're not open
         if self.is_open:
             # trigger appropriate closure/disconnection callbacks
             self._cleanup_port_closure()
+            return True
 
-            # stop the RX data monitoring thread (ignored if not running)
-            self.stop()
+        # already closed if we got here
+        return False
 
     def write(self, data):
         """Writes data to the serial stream.
@@ -105,14 +100,10 @@ class UartStream(Stream):
             time since last time (if applicable)
         :type force: bool
 
-        If the stream is being used in a non-threading arrangement, this method
-        should periodically be executed to manually step through all necessary
-        checks and trigger any relevant data processing and callbacks. Calling
-        this method will automatically call it on an associated parser/generator
-        object.
-
-        This is the same method that is called internally in an infinite loop
-        by the thread target, if threading is used."""
+        This method must be executed inside of a constant event loop to step
+        through all necessary checks and trigger any relevant data processing
+        and callbacks. Calling this method will automatically call it on all
+        associated parser/generator objects."""
 
         try:
             # check for available data
@@ -136,42 +127,6 @@ class UartStream(Stream):
             # trigger appropriate closure/disconnection callbacks
             self._cleanup_port_closure()
 
-    def _watch_data(self):
-        """Watches the serial stream for incoming data.
-
-        To minimize CPU usage, this method attempts to read a single byte from
-        the serial port with no read timeout. Once a single byte is read, it
-        then checks for any remaining data in the port's receive buffer, and
-        reads that in all at once. The entire blob of data is then passed to
-        the internal `_on_rx_data()` method, and the to the application-level
-        `on_rx_data()` callback (if assigned).
-
-        If the port is unexpectedly closed, e.g. due to removal of a USB device,
-        the stream closure callback is triggered, and then the disconnection
-        callback is triggered (if assigned).
-        """
-
-        # loop until externally instructed to stop
-        while threading.get_ident() not in self._stop_thread_ident_list:
-            try:
-                # read one byte at first, no timeout (blocking, low CPU usage)
-                data = self.port.read()
-                if self.port.in_waiting != 0:
-                    # if more data is available now, read it immediately
-                    data += self.port.read(self.port.in_waiting)
-
-                # pass data to internal receive callback
-                self._on_rx_data(data)
-            except (OSError, serial.serialutil.SerialException) as e:
-                # read failed, probably port closed or device removed
-                if threading.get_ident() not in self._stop_thread_ident_list:
-                    self._stop_thread_ident_list.append(self._running_thread_ident)
-
-        # trigger appropriate closure/disconnection callbacks
-        self._cleanup_port_closure()
-
-        # remove ID from "terminate" list since we're about to end execution
-        self._stop_thread_ident_list.remove(threading.get_ident())
 
     def _cleanup_port_closure(self):
         """Handle a closed port cleanly.

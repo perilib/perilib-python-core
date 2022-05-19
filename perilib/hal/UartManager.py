@@ -128,7 +128,6 @@ class UartManager(Manager):
                 stream.on_open_error = self.on_open_error
                 stream.on_rx_data = self.on_rx_data
                 stream.on_tx_data = self.on_tx_data
-                stream.use_threading = True if (self.threading_flags & Manager.STREAM_THREADING) != 0 else False
 
                 # create and attach PySerial port instance to stream (not opened yet)
                 stream.port = serial.Serial()
@@ -181,11 +180,6 @@ class UartManager(Manager):
                     # open this stream only (first connected device)
                     open_stream = True
 
-                    if self.use_threading:
-                        # stop port change monitor thread
-                        # (NOTE: data monitor itself catches disconnection)
-                        self.stop()
-
             if open_stream == True:
                 # create and configure parser/generator object if protocol is available
                 if self.protocol_class != None:
@@ -195,20 +189,11 @@ class UartManager(Manager):
                     parser_generator.on_rx_error = self.on_rx_error
                     parser_generator.on_incoming_packet_timeout = self.on_incoming_packet_timeout
                     parser_generator.on_waiting_packet_timeout = self.on_waiting_packet_timeout
-                    parser_generator.use_threading = True if (self.threading_flags & Manager.PARSER_THREADING) != 0 else False
                     self.streams[device.id].parser_generator = parser_generator
-
-                    if parser_generator.use_threading:
-                        # start the parser/generator monitoring thread
-                        self.streams[device.id].parser_generator.start()
 
                 try:
                     # open the data stream
                     self.streams[device.id].open()
-
-                    if self.streams[device.id].use_threading:
-                        # start the stream monitoring thread
-                        self.streams[device.id].start()
                 except serial.serialutil.SerialException as e:
                     # unable to open the port, but don't crash
                     pass
@@ -239,7 +224,3 @@ class UartManager(Manager):
 
         # remove the device itself from our list
         del self.devices[device.id]
-
-        # resume watching if we stopped due to AUTO_OPEN_SINGLE
-        if self.use_threading and self.auto_open == UartManager.AUTO_OPEN_SINGLE and len(self.devices) == 0:
-            self.start()

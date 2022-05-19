@@ -1,5 +1,4 @@
 import collections
-import threading
 import time
 
 from .Exceptions import *
@@ -14,10 +13,6 @@ class StreamParserGenerator:
     protocol definition. Outgoing data is similarly built from payload, header,
     and footer dictionaries using the same protocol definition.
 
-    While the application layer may pass bytes to the `parse` method by hand,
-    this class also implements a thread-based queue watcher to provide simple
-    monitoring of incoming data (received by a Stream object) and subsequent
-    triggering of an application-level callback when a packet is fully parsed.
     This allows the application to remain separated from any sort of low-level
     data stream handling, and instead react only to complete, validated packets
     as they arrive."""
@@ -45,18 +40,10 @@ class StreamParserGenerator:
         callback (if assigned) will be triggered along with relevant data about
         that event.
 
-        This implementation is capable of using threads for various timeout
-        detection functions, but practically this tends to introduce a lot of
-        latency due to the overhead required for Python to start new threads
-        (dozens of milliseconds even on a fast multi-core machine). Therefore,
-        you should probably not enable threading unless you are feeling lazy AND
-        your data stream is not very busy AND you have a fast machine.
-
-        Timeouts will still work quite well without threading, but you must
-        allow your application code to call the `process()` method (either
-        directly or via a stream, device, or manager higher up in the chain)
-        often in order to ensure timely reactions to incoming data and duration
-        checks."""
+        You must allow your application code to call the `process()` method
+        continuously (either directly or via a stream, device, or manager higher
+        up in the chain) in order to ensure timely reactions to incoming data
+        and duration checks."""
 
         # these attributes may be updated by the application
         self.protocol_class = protocol_class
@@ -81,11 +68,7 @@ class StreamParserGenerator:
         self._incoming_packet_t0 = 0
         self._waiting_packet_t0 = 0
         self._use_waiting_packet_timeout = 0
-        self._wait_packet_event = threading.Event()
         self._wait_timed_out = False
-        self._monitor_thread = None
-        self._running_thread_ident = 0
-        self._stop_thread_ident_list = []
 
         # reset the parser explicitly
         self.reset()
@@ -100,39 +83,6 @@ class StreamParserGenerator:
             return "par/gen on %s" % self.stream
         else:
             return "par/gen on unidentified stream"
-
-    def start(self):
-        """Starts monitoring the RX queue for incoming data.
-
-        If you have not previously configured this object to use threading,
-        calling this method will enable it. If you do not want to use threading
-        in your app, you should periodically call the `process()` method in a
-        loop instead (either directly on the parser/generator object, or in the
-        parent manager stream, device, or manager object higher up in the chain,
-        if one exists)."""
-
-        # don't start if we're already running
-        if not self.is_running:
-            self._monitor_thread = threading.Thread(target=self._watch_rx_queue)
-            self._monitor_thread.daemon = True
-            self._monitor_thread.start()
-            self._running_thread_ident = self._monitor_thread.ident
-            self.is_running = True
-
-    def stop(self):
-        """Stops monitoring the RX queue for new data.
-
-        If the stream was previously monitoring the queue using threading, this
-        method will stop it. You can still perform manual queue watching by
-        calling the `process()` method from your application code regularly.
-        Alternatively, you can skip the queue entirely by passing in new data
-        using the `parse()` method instead of the `queue()` method."""
-
-        # don't stop if we're not running
-        if self.is_running:
-            self._stop_thread_ident_list.append(self._running_thread_ident)
-            self._running_thread_ident = 0
-            self.is_running = False
 
     def reset(self):
         """Resets the parser to an idle/empty state.
@@ -156,23 +106,16 @@ class StreamParserGenerator:
         :param input_data: Byte buffer to append to the parse queue
         :type input_data: bytes
 
-        This method is most appropriate within the context of threading, where
-        a separate data stream RX monitoring thread needs to reliably pass data
-        to the parser to be processed in the parser's own thread (or possibly
-        the main application thread via the `process()` method). Incoming data
-        is added to the queue, which is either monitored by the parser's RX
-        queue monitoring thread (if enabled) or polled periodically when the
-        application calls the `process()` method.
+        :returns: New size of queue
+        :rtype: int
+
+        This method is most appropriate within the context of concurrency.
+        Incoming data is added to the queue, which is polled periodically when
+        the event loop calls the `process()` method.
 
         Any data queued with this method will not be processed until the
         `process()` method is called, either manually from the app or
-        automatically by this object if threading is enabled. If you use this
-        method but to not detect any incoming packets (or parsing errors or
-        timeouts), ensure that you have the correct configuration.
-
-        If you are not using threading, it is usually better to call the
-        `parse()` method directly for immediate parsing of new data, rather than
-        calling the `queue` method."""
+        by an external event loop."""
 
         if isinstance(input_data, (int,)):
             # given a single integer, so convert it to bytes first
@@ -386,13 +329,12 @@ class StreamParserGenerator:
         For use cases where specific command-response cycles are required, or if
         you simply want to wait for a specific packet to arrive such as a
         particular event, this method does that by blocking until that happens.
-        If threading is not enabled for this stream, the internal `process()`
-        method is called inside the busy-wait loop in order to allow processing
-        of incoming data and timeout detection."""
+        The internal `process()` method is called inside the busy-wait loop in
+        order to allow processing of incoming data and timeout detection."""
 
         # wait until we're not busy
         while self.packet_pending is not None:
-            if self.stream is not None and not self.stream.use_threading:
+            if self.stream is not None:
                 # allow the stream to process incoming data
                 self.stream.process()
 
@@ -414,7 +356,7 @@ class StreamParserGenerator:
 
                 # wait for the new packet
                 while self.packet_pending is not None:
-                    if self.stream is not None and not self.stream.use_threading:
+                    if self.stream is not None:
                         # allow the stream to process incoming data
                         self.stream.process()
 
@@ -454,12 +396,9 @@ class StreamParserGenerator:
             time since last time (if applicable)
         :type force: bool
 
-        If the parser/generator is being used in a non-threading arrangement,
-        this method should periodically be executed to manually step through all
-        necessary checks and trigger any relevant data processing and callbacks.
-
-        This is the same method that is called internally in an infinite loop
-        by the thread target, if threading is used."""
+        This method must be executed inside of a constant event loop to step
+        through all necessary checks and trigger any relevant data processing
+        and callbacks."""
 
         # get data from queue (blocking request)
         while len(self.rx_deque) > 0:
@@ -522,25 +461,3 @@ class StreamParserGenerator:
 
         # fire the wait event if necessary
         self._wait_timed_out = True
-        self._wait_packet_event.set()
-
-    def _watch_rx_queue(self):
-        """Monitor the RX queue for new data to process.
-
-        If threading is enabled, this is the thread target method. It will run
-        as long as the parser/generator object is not stopped (or the port that
-        is handling the stream doesn't disappear, e.g. due to USB device
-        removal).
-
-        If threading is not enabled, the application must call the `process()`
-        method frequently in order to handle queue monitoring and timeout
-        detection in a timely fashion. If timeouts are not used for a particular
-        protocol, then you could theoretically skip processing entirely and
-        instead just pass stream data directly in via the `parse()` method
-        instead of the `queue()` method."""
-
-        while threading.get_ident() not in self._stop_thread_ident_list:
-            self.process()
-
-        # remove ID from "terminate" list since we're about to end execution
-        self._stop_thread_ident_list.remove(threading.get_ident())

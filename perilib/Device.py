@@ -42,12 +42,9 @@ class Device:
             time since last time (if applicable)
         :type force: bool
 
-        If the device is being used in a non-threading arrangement, this method
-        should periodically be executed to manually step through all necessary
-        checks and trigger any relevant data processing and callbacks.
-
-        This is the same method that would be called internally in an infinite
-        loop by the thread target, if threading is used."""
+        This method must be executed inside of a constant event loop to step
+        through all necessary checks and trigger any relevant data processing
+        and callbacks."""
 
         if mode in [ProcessMode.BOTH, ProcessMode.SUBS]:
             if self.stream is not None:

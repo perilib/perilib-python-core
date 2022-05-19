@@ -17,10 +17,6 @@ class Manager:
     classes that use specific low-level communication drivers. As a minimum, a
     child class must implement the `_get_connected_devices()` method."""
 
-    MANAGER_THREADING = 1
-    STREAM_THREADING = 2
-    PARSER_THREADING = 4
-
     def __init__(self):
         """Initializes a manager instance.
 
@@ -33,8 +29,6 @@ class Manager:
         # these attributes may be updated by the application
         self.device_filter = None
         self.check_interval = 1.0
-        self.threading_flags = 0
-        self.use_threading = False
         self.on_connect_device = None
         self.on_disconnect_device = None
 
@@ -43,66 +37,7 @@ class Manager:
         self.devices = {}
 
         # these attributes are intended to be private
-        self._monitor_thread = None
-        self._running_thread_ident = 0
-        self._stop_thread_ident_list = []
         self._last_process_time = 0
-
-    def configure_threading(self, flags):
-        """Configure threading settings for this manager instance.
-
-        :param flags: Processing mode defining whether to run for this object,
-            sub-objects lower in the management hierarchy (parser/generator
-            objects in this case), or both
-        :type flags: int
-
-        This method can set the threading use for the manager itself as well as
-        for the stream(s) and parser/generator(s) lower in the hierarchy. The
-        default is that streaming is not used. If threading is enabled here for
-        lower objects, then it will be enabled as directed when the new objects
-        are created (upon detection and opening of each stream).
-        """
-
-        self.threading_flags = flags
-        self.use_threading = True if (self.threading_flags & Manager.MANAGER_THREADING) != 0 else False
-
-    def start(self):
-        """Starts monitoring for device conncecions and disconnections.
-
-        The manager instance watches for connections and disconnections using
-        the low-level driver (in a subclass). Either of these events will
-        trigger an application-level callback with a device that triggered the
-        event. If automatical connections are enabled (either for the first
-        detected deivce or for all devices), then a new stream will be created
-        and (if supplied) a parser/generator object attached for convenient
-        handling of incoming and outgoing data.
-
-        If you have not previously configured this object to use threading,
-        calling this method will enable it. If you do not want to use threading
-        in your app, you should periodically call the `process()` method in a
-        loop instead."""
-
-        # don't start if we're already running
-        if not self.is_running:
-            self._monitor_thread = threading.Thread(target=self._watch_devices)
-            self._monitor_thread.daemon = True
-            self._monitor_thread.start()
-            self._running_thread_ident = self._monitor_thread.ident
-            self.use_threading = True
-            self.threading_flags |= Manager.MANAGER_THREADING
-            self.is_running = True
-
-    def stop(self):
-        """Stops monitoring for device connections and disconnections.
-
-        If the manager was previously monitoring device connectivity, this
-        method will stop it."""
-
-        # don't stop if we're not running
-        if self.is_running:
-            self._stop_thread_ident_list.append(self._running_thread_ident)
-            self._running_thread_ident = 0
-            self.is_running = False
 
     def process(self, mode=ProcessMode.BOTH, force=False):
         """Handle any pending events or data waiting to be processed.
@@ -115,13 +50,10 @@ class Manager:
             time since last time (if applicable)
         :type force: bool
 
-        If the manager is being used in a non-threading arrangement, this method
-        should periodically be executed to manually step through all necessary
-        checks and trigger any relevant data processing and callbacks. Calling
-        this method will automatically call it on all associated device objects.
-
-        This is the same method that is called internally in an infinite loop
-        by the thread target, if threading is used."""
+        This method must be executed inside of a constant event loop to step
+        through all necessary checks and trigger any relevant data processing
+        and callbacks. Calling this method will automatically call it on all
+        associated device objects."""
 
         # check for new devices on the configured interval
         t0 = time.time()
@@ -160,7 +92,7 @@ class Manager:
                     try:
                         del self.devices[device_id]
                     except KeyError as e:
-                        # already removed, possibly from another thread
+                        # already removed
                         pass
 
         # allow known devices to process immediately
@@ -185,34 +117,6 @@ class Manager:
         # child class must implement
         raise PerilibHalException("Child class has not implemented _get_connected_devices() method, cannot use base class stub")
 
-    def _watch_devices(self):
-        """Watches the system for connections and disconnections.
-
-        Note that this method is not intended for application use; rather, it is
-        executed in a separate thread after the stream is opened in order to
-        allow a non-blocking mechanism for efficient device monitoring. If any
-        connections or disconnections are detected, this method will pass them
-        to the `_on_connect_device()` or `_on_disconnect_device()` methods to be
-        optionally processed and/or handed to the application-exposed
-        callbacks.
-
-        Overridden implementations of this method should run in an infinite loop
-        and safely handle any exceptions that might occur, so that the device
-        connection monitoring thread will not terminate unexpectedly.
-
-        Since no driver is inherent in the base class, you *must* override this
-        method in child classes so that a suitable action occurs. Opening a
-        stream driven by nothing at all will generate an exception."""
-
-        while threading.get_ident() not in self._stop_thread_ident_list:
-            # process self, or self+subs if threaded subs is enabled
-            self.process(ProcessMode.BOTH if ((self.threading_flags & Manager.STREAM_THREADING) != 0) else ProcessMode.SELF)
-
-            # wait before checking again
-            time.sleep(self.check_interval)
-
-        # remove ID from "terminate" list since we're about to end execution
-        self._stop_thread_ident_list.remove(threading.get_ident())
 
     def _on_connect_device(self, device):
         """Handles device connections.
